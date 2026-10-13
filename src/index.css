@@ -44,29 +44,6 @@ button, input, select { font: inherit; color: inherit; }
   box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* ---------- Lock ---------- */
-.lock { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-.lock-card { width: min(380px, 100%); padding: 40px 32px; text-align: center; animation: rise 0.5s ease both; }
-.lock-card h1 { font-size: 1.5rem; margin-top: 18px; }
-.lock-card p { margin: 8px 0 24px; }
-.lock-icon {
-  width: 60px; height: 60px; margin: 0 auto; border-radius: 18px; display: grid; place-items: center;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6); box-shadow: 0 10px 30px -8px rgba(99, 102, 241, 0.7);
-}
-.lock-input { display: flex; gap: 8px; }
-.lock-input input {
-  flex: 1; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--line);
-  background: rgba(2, 6, 23, 0.5); outline: none; transition: border-color 0.2s;
-}
-.lock-input input:focus { border-color: var(--accent); }
-.lock-input button {
-  width: 46px; border: 0; border-radius: 12px; cursor: pointer; display: grid; place-items: center;
-  background: linear-gradient(135deg, #3b82f6, #6366f1); transition: transform 0.15s, opacity 0.2s;
-}
-.lock-input button:disabled { opacity: 0.4; cursor: default; }
-.lock-input button:not(:disabled):hover { transform: translateX(2px); }
-.lock-card .lock-error { color: #f87171; font-size: 0.85rem; margin: 14px 0 0; }
-.shake { animation: shake 0.4s ease; }
 
 /* ---------- Layout ---------- */
 .app { max-width: 1440px; margin: 0 auto; padding: 28px 28px 48px; }
@@ -193,7 +170,6 @@ tbody tr:hover { background: rgba(96, 165, 250, 0.06); }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1200px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

@@ -19,7 +19,6 @@ import {
   Building2,
   CalendarDays,
   Coins,
-  LogOut,
   Package,
   Percent,
   RefreshCw,
@@ -38,8 +37,6 @@ import {
   type TeamSalesRow,
 } from './lib/supabase'
 import { fmtCompact, fmtNumber, fmtPct, fmtWon, monthLabel, rate } from './lib/format'
-import { LockScreen } from './components/LockScreen'
-import { isUnlocked, lock } from './lib/auth'
 import { DataTable, type Column } from './components/DataTable'
 
 interface Dataset {
@@ -111,19 +108,6 @@ function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
 }
 
 export default function App() {
-  const [unlocked, setUnlocked] = useState(isUnlocked)
-  if (!unlocked) return <LockScreen onUnlock={() => setUnlocked(true)} />
-  return (
-    <Dashboard
-      onLock={() => {
-        lock()
-        setUnlocked(false)
-      }}
-    />
-  )
-}
-
-function Dashboard({ onLock }: { onLock: () => void }) {
   const [data, setData] = useState<Dataset | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -279,9 +263,6 @@ function Dashboard({ onLock }: { onLock: () => void }) {
           <button className="btn" onClick={load} disabled={loading} title="새로고침">
             <RefreshCw size={15} className={loading ? 'spin' : ''} />
             <span>새로고침</span>
-          </button>
-          <button className="btn ghost" onClick={onLock} title="잠금">
-            <LogOut size={15} />
           </button>
         </div>
       </header>
