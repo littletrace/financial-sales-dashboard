@@ -48,6 +48,7 @@ interface Dataset {
 
 interface Totals {
   supply: number
+  costedSupply: number // 원가 반영 매출: 매출이익 = costedSupply - cost
   cost: number
   profit: number
   qty: number
@@ -84,15 +85,16 @@ const tooltipStyle = {
   color: '#e2e8f0',
 }
 
-function sum(rows: { total_supply_amount: number; total_cost: number; total_profit: number; total_qty: number }[]): Totals {
+function sum(rows: { total_supply_amount: number; costed_supply_amount: number; total_cost: number; total_profit: number; total_qty: number }[]): Totals {
   return rows.reduce(
     (acc, r) => ({
       supply: acc.supply + r.total_supply_amount,
+      costedSupply: acc.costedSupply + r.costed_supply_amount,
       cost: acc.cost + r.total_cost,
       profit: acc.profit + r.total_profit,
       qty: acc.qty + r.total_qty,
     }),
-    { supply: 0, cost: 0, profit: 0, qty: 0 },
+    { supply: 0, costedSupply: 0, cost: 0, profit: 0, qty: 0 },
   )
 }
 
@@ -155,7 +157,7 @@ export default function App() {
     const byMonth = groupBy(data?.team.filter(inTeam) ?? [], (r) => r.sales_month)
     return months.map((m) => {
       const t = sum(byMonth.get(m) ?? [])
-      return { month: m, label: monthLabel(m), supply: t.supply, profit: t.profit, rate: rate(t.profit, t.supply) }
+      return { month: m, label: monthLabel(m), supply: t.supply, profit: t.profit, rate: rate(t.profit, t.costedSupply) }
     })
   }, [data, months, inTeam])
 
@@ -164,7 +166,7 @@ export default function App() {
     const grand = sum(rows).supply
     return [...groupBy(rows, (r) => r.sales_team)].map(([name, list]) => {
       const t = sum(list)
-      return { sales_team: name, ...t, rate: rate(t.profit, t.supply), share: grand ? (t.supply / grand) * 100 : 0 }
+      return { sales_team: name, ...t, rate: rate(t.profit, t.costedSupply), share: grand ? (t.supply / grand) * 100 : 0 }
     })
   }, [data, inMonth])
 
@@ -192,7 +194,7 @@ export default function App() {
           item_code: list[0].item_code,
           item_type: list[0].item_type ?? '',
           ...t,
-          rate: rate(t.profit, t.supply),
+          rate: rate(t.profit, t.costedSupply),
           unit_price: t.qty ? t.supply / t.qty : 0,
         }
       })
@@ -206,7 +208,7 @@ export default function App() {
       .map(([name, list]) => {
         const t = sum(list)
         const teamsOf = [...new Set(list.map((r) => r.sales_team))]
-        return { customer_name: name, sales_team: teamsOf.join(', '), ...t, rate: rate(t.profit, t.supply) }
+        return { customer_name: name, sales_team: teamsOf.join(', '), ...t, rate: rate(t.profit, t.costedSupply) }
       })
       .sort((a, b) => b.supply - a.supply)
       .slice(0, 30)
@@ -214,9 +216,9 @@ export default function App() {
 
   const kpiCards = [
     { label: '총 매출액', value: fmtWon(kpi.supply), sub: fmtCompact(kpi.supply) + '원', icon: Wallet, tone: 'blue' },
-    { label: '총 원가', value: fmtWon(kpi.cost), sub: fmtCompact(kpi.cost) + '원', icon: Coins, tone: 'violet' },
+    { label: '총 원가', value: fmtWon(kpi.cost), sub: `원가 반영 매출 ${fmtCompact(kpi.costedSupply)}원`, icon: Coins, tone: 'violet' },
     { label: '총 매출이익', value: fmtWon(kpi.profit), sub: fmtCompact(kpi.profit) + '원', icon: TrendingUp, tone: 'green' },
-    { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.supply)), sub: '매출이익 ÷ 매출액', icon: Percent, tone: 'amber' },
+    { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.costedSupply)), sub: '매출이익 ÷ 원가 반영 매출', icon: Percent, tone: 'amber' },
     { label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', icon: Boxes, tone: 'cyan' },
   ]
 
@@ -458,6 +460,7 @@ function teamColumns(selected: string): Column<TeamSummary>[] {
       render: (r) => <span className={r.sales_team === selected ? 'highlight' : ''}>{r.sales_team}</span>,
     },
     { key: 'supply', label: '매출액', align: 'right', render: money('supply') },
+    { key: 'costedSupply', label: '원가 반영 매출', align: 'right', render: money('costedSupply') },
     { key: 'cost', label: '원가', align: 'right', render: money('cost') },
     { key: 'profit', label: '매출이익', align: 'right', render: money('profit') },
     { key: 'rate', label: '이익률', align: 'right', render: pct },
@@ -491,6 +494,7 @@ const customerColumns: Column<CustomerSummary>[] = [
   { key: 'customer_name', label: '거래처명' },
   { key: 'sales_team', label: '담당 부서' },
   { key: 'supply', label: '매출액', align: 'right', render: money('supply') },
+  { key: 'costedSupply', label: '원가 반영 매출', align: 'right', render: money('costedSupply') },
   { key: 'cost', label: '원가', align: 'right', render: money('cost') },
   { key: 'profit', label: '매출이익', align: 'right', render: money('profit') },
   { key: 'rate', label: '이익률', align: 'right', render: pct },

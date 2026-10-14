@@ -17,6 +17,7 @@ export interface SalesMetrics {
   total_cost: number
   total_profit: number
   profit_rate: number | null
+  costed_supply_amount: number // 원가가 있는 행의 매출액
 }
 
 export interface TeamSalesRow extends SalesMetrics {
@@ -57,6 +58,7 @@ const NUMERIC_KEYS = [
   'total_profit',
   'profit_rate',
   'avg_unit_price',
+  'costed_supply_amount',
 ] as const
 
 // PostgREST 응답의 numeric 컬럼을 number로 정규화
