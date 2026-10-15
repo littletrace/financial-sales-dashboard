@@ -181,3 +181,35 @@ tbody tr:hover { background: rgba(96, 165, 250, 0.06); }
   .pie-wrap { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 480px) { .kpis { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Pivot (조회) ---------- */
+.pivot { display: flex; flex-direction: column; gap: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip {
+  padding: 7px 13px; border-radius: 999px; border: 1px solid var(--line); background: rgba(2, 6, 23, 0.45);
+  color: var(--muted); cursor: pointer; font-size: 0.85rem; transition: all 0.15s;
+}
+.chip.small { padding: 4px 10px; font-size: 0.8rem; }
+.chip:hover { color: var(--text); }
+.chip.active { color: #fff; border-color: transparent; background: linear-gradient(135deg, rgba(59, 130, 246, 0.45), rgba(139, 92, 246, 0.4)); }
+.pivot-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.pivot-controls .select { display: inline-flex; align-items: center; gap: 6px; }
+.pivot-controls select {
+  height: 34px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line);
+  background: rgba(2, 6, 23, 0.45); color: var(--text);
+}
+.team-chips { gap: 5px; }
+.pivot-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.pivot-actions { display: inline-flex; gap: 6px; }
+.btn.small { padding: 5px 10px; font-size: 0.8rem; }
+.pivot-scroll { max-height: 640px; }
+.pivot-table th:first-child, .pivot-table td.pivot-label { position: sticky; left: 0; background: #0c1532; z-index: 2; }
+.pivot-table td.pivot-label { background: #0a1230; max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+.pivot-table tr.group td { font-weight: 600; }
+.pivot-table td.strong { font-weight: 600; }
+.pivot-table tfoot td { position: sticky; bottom: 0; background: #111c40; font-weight: 700; border-top: 1px solid var(--line); }
+.tree-toggle {
+  display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: inherit;
+  font: inherit; cursor: pointer; padding: 0;
+}
+.refreshing { opacity: 0.6; transition: opacity 0.2s; }

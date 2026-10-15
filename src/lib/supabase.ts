@@ -98,3 +98,33 @@ export const getMonthlyItemSales = () =>
 
 export const getMonthlyCustomerSales = () =>
   fetchAll<CustomerSalesRow>('v_sales_monthly_customer', ['sales_month', 'sales_team', 'customer_name'])
+
+// ---------- 조회(피벗): 구글시트 조회 탭 대체 ----------
+// 행 하나 = [행키배열, 월, 수량, 판매금액, 원가, 이익, 원가반영매출]
+export type PivotRow = [string[], string, number | null, number | null, number | null, number | null, number | null]
+
+export interface PivotParams {
+  rows: string[]
+  from?: string | null
+  to?: string | null
+  exclude?: string[] | null // 제외할 품목자산분류 ('(빈값)' = 비어 있는 행)
+  channel?: string | null
+  teams?: string[] | null
+  items?: string[] | null
+  sources?: string[] | null // 국내 / 수출
+}
+
+export async function getPivot(p: PivotParams): Promise<PivotRow[]> {
+  const { data, error } = await supabase.rpc('pivot_sales', {
+    p_rows: p.rows,
+    p_from: p.from ?? null,
+    p_to: p.to ?? null,
+    p_exclude_categories: p.exclude ?? null,
+    p_channel: p.channel ?? null,
+    p_teams: p.teams ?? null,
+    p_items: p.items ?? null,
+    p_sources: p.sources ?? null,
+  })
+  if (error) throw new Error(`[pivot_sales] ${error.message}`)
+  return (data ?? []) as PivotRow[]
+}

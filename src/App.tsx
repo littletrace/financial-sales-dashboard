@@ -22,6 +22,7 @@ import {
   Package,
   Percent,
   RefreshCw,
+  Table as TableIcon,
   TrendingUp,
   Users,
   Wallet,
@@ -38,6 +39,7 @@ import {
 } from './lib/supabase'
 import { fmtCompact, fmtNumber, fmtPct, fmtWon, monthLabel, rate } from './lib/format'
 import { DataTable, type Column } from './components/DataTable'
+import { PivotView } from './components/PivotView'
 
 interface Dataset {
   team: TeamSalesRow[]
@@ -74,7 +76,7 @@ interface CustomerSummary extends Totals {
   rate: number | null
 }
 
-type Tab = 'team' | 'item' | 'customer'
+type Tab = 'team' | 'item' | 'customer' | 'pivot'
 
 const ALL = 'all'
 const PALETTE = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#fb923c', '#94a3b8']
@@ -117,6 +119,11 @@ export default function App() {
   const [month, setMonth] = useState(ALL)
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
+  const pivotMonths = useMemo(() => [...new Set((data?.team ?? []).map((r) => r.sales_month))].sort(), [data])
+  const pivotTeams = useMemo(
+    () => [...new Set((data?.team ?? []).map((r) => r.sales_team).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')),
+    [data],
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -415,6 +422,9 @@ export default function App() {
               <button className={tab === 'customer' ? 'active' : ''} onClick={() => setTab('customer')}>
                 <Users size={15} /> 주요 거래처 TOP 30
               </button>
+              <button className={tab === 'pivot' ? 'active' : ''} onClick={() => setTab('pivot')}>
+                <TableIcon size={15} /> 조회 (시트 피벗)
+              </button>
             </nav>
             <div className="tab-body" key={tab}>
               {tab === 'team' && (
@@ -430,6 +440,7 @@ export default function App() {
                   note={team === ALL ? undefined : '품목 집계에는 부서 필터가 적용되지 않습니다'}
                 />
               )}
+              {tab === 'pivot' && <PivotView months={pivotMonths} teams={pivotTeams} />}
               {tab === 'customer' && (
                 <DataTable
                   rows={topCustomers}
