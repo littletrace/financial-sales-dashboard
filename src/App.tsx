@@ -79,12 +79,12 @@ interface CustomerSummary extends Totals {
 type Tab = 'team' | 'item' | 'customer' | 'pivot'
 
 const ALL = 'all'
-const PALETTE = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#fb923c', '#94a3b8']
+const PALETTE = ['#3182f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#f97316', '#94a3b8']
 const tooltipStyle = {
-  background: 'rgba(10, 18, 40, 0.92)',
-  border: '1px solid rgba(148, 163, 184, 0.2)',
+  background: '#ffffff',
+  border: '1px solid #e5e8eb',
   borderRadius: 12,
-  color: '#e2e8f0',
+  color: '#191f28',
 }
 
 function sum(rows: { total_supply_amount: number; costed_supply_amount: number; total_cost: number; total_profit: number; total_qty: number }[]): Totals {
@@ -317,16 +317,16 @@ export default function App() {
                 <ComposedChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.95} />
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.35} />
+                      <stop offset="0%" stopColor="#3182f6" stopOpacity={0.95} />
+                      <stop offset="100%" stopColor="#3182f6" stopOpacity={0.45} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(148,163,184,0.1)" vertical={false} />
+                  <CartesianGrid stroke="#eef0f3" vertical={false} />
                   <XAxis dataKey="label" stroke="#64748b" tickLine={false} axisLine={false} />
                   <YAxis stroke="#64748b" tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={56} />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    cursor={{ fill: 'rgba(96,165,250,0.08)' }}
+                    cursor={{ fill: 'rgba(49,130,246,0.06)' }}
                     formatter={(v, name) => [fmtWon(Number(v)), name === 'supply' ? '매출액' : '매출이익']}
                   />
                   <Bar dataKey="supply" radius={[6, 6, 0, 0]} maxBarSize={44}>
@@ -338,7 +338,7 @@ export default function App() {
                       />
                     ))}
                   </Bar>
-                  <Line type="monotone" dataKey="profit" stroke="#34d399" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -393,17 +393,17 @@ export default function App() {
               </div>
               <ResponsiveContainer width="100%" height={Math.max(200, regions.length * 44)}>
                 <BarChart data={regions} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
-                  <CartesianGrid stroke="rgba(148,163,184,0.1)" horizontal={false} />
+                  <CartesianGrid stroke="#eef0f3" horizontal={false} />
                   <XAxis type="number" stroke="#64748b" tickLine={false} axisLine={false} tickFormatter={fmtCompact} />
-                  <YAxis type="category" dataKey="name" stroke="#94a3b8" tickLine={false} axisLine={false} width={72} />
+                  <YAxis type="category" dataKey="name" stroke="#64748b" tickLine={false} axisLine={false} width={72} />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    cursor={{ fill: 'rgba(167,139,250,0.08)' }}
+                    cursor={{ fill: 'rgba(139,92,246,0.06)' }}
                     formatter={(v) => [fmtWon(Number(v)), '매출액']}
                   />
                   <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={26}>
                     {regions.map((r) => (
-                      <Cell key={r.name} fill={r.name === '미지정' ? '#475569' : '#a78bfa'} />
+                      <Cell key={r.name} fill={r.name === '미지정' ? '#cbd5e1' : '#8b5cf6'} />
                     ))}
                   </Bar>
                 </BarChart>
