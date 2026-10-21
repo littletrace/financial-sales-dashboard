@@ -32,6 +32,7 @@ import {
   getMonthlyCustomerSales,
   getMonthlyItemSales,
   getMonthlyTeamSales,
+  getLastLoadedAt,
   type ChannelSalesRow,
   type CustomerSalesRow,
   type ItemSalesRow,
@@ -116,7 +117,7 @@ export default function App() {
   const [data, setData] = useState<Dataset | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
+  const [loadedAt, setLoadedAt] = useState<Date | null>(null)
   const [month, setMonth] = useState(ALL)
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
@@ -130,14 +131,15 @@ export default function App() {
     setLoading(true)
     setError(null)
     try {
-      const [teamRows, channel, item, customer] = await Promise.all([
+      const [teamRows, channel, item, customer, lastLoaded] = await Promise.all([
         getMonthlyTeamSales(),
         getMonthlyChannelSales(),
         getMonthlyItemSales(),
         getMonthlyCustomerSales(),
+        getLastLoadedAt(),
       ])
       setData({ team: teamRows, channel, item, customer })
-      setUpdatedAt(new Date())
+      setLoadedAt(lastLoaded)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -243,7 +245,8 @@ export default function App() {
             <h1>매출 실적 대시보드</h1>
             <p className="muted small">
               {periodLabel} · {team === ALL ? '전체 부서' : team}
-              {updatedAt && ` · ${updatedAt.toLocaleTimeString('ko-KR')} 갱신`}
+              {loadedAt &&
+                ` · ${loadedAt.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} DB적재`}
             </p>
           </div>
         </div>

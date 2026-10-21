@@ -3,11 +3,7 @@ import { Play } from 'lucide-react'
 
 // api/run.ts 의 REPORTS 와 같은 순서
 const REPORTS = ['전부', '거래명세서품목조회', '수출매출품목조회', '재고금액상세조회']
-const LABEL: Record<string, string> = {
-  queued: '대기 중', in_progress: '실행 중', success: '성공', failure: '실패', cancelled: '취소됨',
-}
-
-interface Run { status: string; conclusion: string | null; createdAt: string; url: string }
+interface Run { status: string; conclusion: string | null; createdAt: string }
 
 /** 영림원 다운로드 → DB 적재 실행 버튼. 실행 성공으로 끝나면 onDone(데이터 새로고침) 호출 */
 export function RunButton({ onDone }: { onDone: () => void }) {
@@ -57,12 +53,9 @@ export function RunButton({ onDone }: { onDone: () => void }) {
     form.reset()
     since.current = Date.now() - 10_000 // PC·GitHub 시계 차이 여유
     dialog.current?.close()
-    setRun({ status: 'queued', conclusion: null, createdAt: new Date().toISOString(), url: '' })
+    setRun({ status: 'queued', conclusion: null, createdAt: new Date().toISOString() })
     setTimeout(poll, 5000) // GitHub 에 실행이 생기기까지 몇 초 걸림
   }
-
-  const state = run ? LABEL[run.status === 'completed' ? run.conclusion ?? '' : run.status] ?? run.status : ''
-  const when = run && new Date(run.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   return (
     <>
@@ -70,11 +63,6 @@ export function RunButton({ onDone }: { onDone: () => void }) {
         <Play size={15} className={active ? 'spin' : ''} />
         <span>{active ? 'DB적재 중…' : 'DB적재'}</span>
       </button>
-      {run && (
-        <a className="run-status" href={run.url || undefined} target="_blank" rel="noreferrer">
-          최근 {when} · {state}
-        </a>
-      )}
       <dialog ref={dialog} className="run-dialog" onClose={() => setMsg('')}>
         <form onSubmit={submit}>
           <h3>영림원 다운로드 → DB 적재</h3>

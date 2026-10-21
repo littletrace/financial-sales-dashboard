@@ -43,6 +43,17 @@ export interface ItemSalesRow extends SalesMetrics {
   avg_unit_price: number | null
 }
 
+// 마지막 DB 적재 시각: 적재 스크립트가 매번 전 기간을 재계산하며 updated_at 을 갱신함
+export async function getLastLoadedAt(): Promise<Date | null> {
+  const { data, error } = await supabase
+    .from('fct_sales')
+    .select('updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+  if (error) throw new Error(error.message)
+  return data?.[0] ? new Date(data[0].updated_at) : null
+}
+
 export interface CustomerSalesRow extends SalesMetrics {
   sales_month: string
   sales_team: string

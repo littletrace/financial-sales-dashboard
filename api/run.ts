@@ -23,12 +23,12 @@ const passwordOk = (input: unknown) => {
   return !!pw && typeof input === 'string' && timingSafeEqual(sha(input), sha(pw))
 }
 
-// 최근 실행 상태 (상태·시각·링크만 반환하므로 비밀번호 없이 조회)
+// 최근 실행 상태 (버튼의 '실행 중' 표시용. 상태·시각만 반환하므로 비밀번호 없이 조회)
 export async function GET() {
   const r = await gh('runs?per_page=1')
   if (!r.ok) return json({ error: `GitHub ${r.status}` }, 502)
   const run = (await r.json()).workflow_runs?.[0]
-  return json(run ? { status: run.status, conclusion: run.conclusion, createdAt: run.created_at, url: run.html_url } : null)
+  return json(run ? { status: run.status, conclusion: run.conclusion, createdAt: run.created_at } : null)
 }
 
 export async function POST(request: Request) {

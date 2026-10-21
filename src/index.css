@@ -211,8 +211,6 @@ tbody tr:hover { background: #f5f9ff; }
 .refreshing { opacity: 0.6; transition: opacity 0.2s; }
 
 /* 영림원 실행 버튼 */
-.run-status { font-size: 0.78rem; color: var(--muted); text-decoration: none; white-space: nowrap; }
-.run-status[href]:hover { text-decoration: underline; }
 .run-dialog {
   width: min(360px, calc(100vw - 32px)); padding: 20px; border: 1px solid var(--line); border-radius: 16px;
   background: var(--surface); color: var(--text);
