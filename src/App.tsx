@@ -40,6 +40,7 @@ import {
 import { fmtCompact, fmtNumber, fmtPct, fmtWon, monthLabel, rate } from './lib/format'
 import { DataTable, type Column } from './components/DataTable'
 import { PivotView } from './components/PivotView'
+import { RunButton } from './components/RunButton'
 
 interface Dataset {
   team: TeamSalesRow[]
@@ -273,6 +274,7 @@ export default function App() {
             <RefreshCw size={15} className={loading ? 'spin' : ''} />
             <span>새로고침</span>
           </button>
+          <RunButton onDone={load} />
         </div>
       </header>
 
