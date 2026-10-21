@@ -68,7 +68,7 @@ export function RunButton({ onDone }: { onDone: () => void }) {
     <>
       <button className="btn" onClick={() => dialog.current?.showModal()} disabled={active}>
         <Play size={15} className={active ? 'spin' : ''} />
-        <span>{active ? '영림원 실행 중…' : '영림원 실행'}</span>
+        <span>{active ? 'DB적재 중…' : 'DB적재'}</span>
       </button>
       {run && (
         <a className="run-status" href={run.url || undefined} target="_blank" rel="noreferrer">
