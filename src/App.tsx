@@ -33,6 +33,8 @@ import {
   getMonthlyItemSales,
   getMonthlyTeamSales,
   getLastLoadedAt,
+  getSalesTargets,
+  type SalesTarget,
   type ChannelSalesRow,
   type CustomerSalesRow,
   type ItemSalesRow,
@@ -48,6 +50,7 @@ interface Dataset {
   channel: ChannelSalesRow[]
   item: ItemSalesRow[]
   customer: CustomerSalesRow[]
+  targets: SalesTarget[]
 }
 
 interface Totals {
@@ -62,6 +65,8 @@ interface TeamSummary extends Totals {
   sales_team: string
   rate: number | null
   share: number
+  target: number | null // 매출목표 (실적이 있는 월만 합산)
+  achieve: number | null // 달성률 = 매출액 ÷ 매출목표
 }
 
 interface ItemSummary extends Totals {
@@ -131,14 +136,15 @@ export default function App() {
     setLoading(true)
     setError(null)
     try {
-      const [teamRows, channel, item, customer, lastLoaded] = await Promise.all([
+      const [teamRows, channel, item, customer, targets, lastLoaded] = await Promise.all([
         getMonthlyTeamSales(),
         getMonthlyChannelSales(),
         getMonthlyItemSales(),
         getMonthlyCustomerSales(),
+        getSalesTargets(),
         getLastLoadedAt(),
       ])
-      setData({ team: teamRows, channel, item, customer })
+      setData({ team: teamRows, channel, item, customer, targets })
       setLoadedAt(lastLoaded)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -174,11 +180,21 @@ export default function App() {
   const teamSummary = useMemo<TeamSummary[]>(() => {
     const rows = data?.team.filter(inMonth) ?? []
     const grand = sum(rows).supply
+    // 전체 기간이면 실적이 있는 월(1월~당월)의 목표만 합산: 아직 안 온 달 목표까지 넣으면 달성률이 의미 없음
+    const targetOf = new Map<string, number>()
+    for (const t of data?.targets ?? []) {
+      if (inMonth({ sales_month: t.target_month }) && months.includes(t.target_month))
+        targetOf.set(t.sales_team, (targetOf.get(t.sales_team) ?? 0) + t.target_amount)
+    }
     return [...groupBy(rows, (r) => r.sales_team)].map(([name, list]) => {
       const t = sum(list)
-      return { sales_team: name, ...t, rate: rate(t.profit, t.costedSupply), share: grand ? (t.supply / grand) * 100 : 0 }
+      const target = targetOf.get(name) ?? null
+      return {
+        sales_team: name, ...t, rate: rate(t.profit, t.costedSupply), share: grand ? (t.supply / grand) * 100 : 0,
+        target, achieve: target ? (t.supply / target) * 100 : null,
+      }
     })
-  }, [data, inMonth])
+  }, [data, inMonth, months])
 
   const teamPie = useMemo(() => {
     const sorted = [...teamSummary].sort((a, b) => b.supply - a.supply)
@@ -476,6 +492,8 @@ function teamColumns(selected: string): Column<TeamSummary>[] {
       render: (r) => <span className={r.sales_team === selected ? 'highlight' : ''}>{r.sales_team}</span>,
     },
     { key: 'supply', label: '매출액', align: 'right', render: money('supply') },
+    { key: 'target', label: '매출목표', align: 'right', render: (r) => (r.target === null ? <span className="dim">-</span> : fmtWon(r.target)) },
+    { key: 'achieve', label: '달성률', align: 'right', render: (r) => fmtPct(r.achieve) },
     { key: 'costedSupply', label: '원가 반영 매출', align: 'right', render: money('costedSupply') },
     { key: 'cost', label: '원가', align: 'right', render: money('cost') },
     { key: 'profit', label: '매출이익', align: 'right', render: money('profit') },

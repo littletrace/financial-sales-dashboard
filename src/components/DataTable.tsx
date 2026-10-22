@@ -31,8 +31,8 @@ export function DataTable<T extends object>({ rows, columns, searchKeys, default
       const x = a[sortKey]
       const y = b[sortKey]
       const cmp =
-        typeof x === 'number' && typeof y === 'number'
-          ? x - y
+        typeof x === 'number' || typeof y === 'number'
+          ? (typeof x === 'number' ? x : -Infinity) - (typeof y === 'number' ? y : -Infinity)
           : String(x ?? '').localeCompare(String(y ?? ''), 'ko')
       return desc ? -cmp : cmp
     })

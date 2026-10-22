@@ -98,6 +98,19 @@ async function fetchAll<T>(view: string, orderKeys: string[]): Promise<T[]> {
   return rows
 }
 
+export interface SalesTarget {
+  target_month: string
+  sales_team: string
+  target_amount: number // 부가세 별도
+}
+
+// 부서별 월별 매출목표 (기준표/매출목표.csv, 연 100행 미만이라 한 번에 조회)
+export async function getSalesTargets(): Promise<SalesTarget[]> {
+  const { data, error } = await supabase.from('dim_sales_target').select('target_month,sales_team,target_amount')
+  if (error) throw new Error(`[dim_sales_target] ${error.message}`)
+  return (data ?? []).map((r) => ({ ...r, target_amount: Number(r.target_amount) }))
+}
+
 export const getMonthlyTeamSales = () =>
   fetchAll<TeamSalesRow>('v_sales_monthly_team', ['sales_month', 'sales_team'])
 
