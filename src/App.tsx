@@ -44,6 +44,7 @@ import { fmtCompact, fmtNumber, fmtPct, fmtWon, monthLabel, rate } from './lib/f
 import { DataTable, type Column } from './components/DataTable'
 import { PivotView } from './components/PivotView'
 import { RunButton } from './components/RunButton'
+import { ChatPanel } from './components/ChatPanel'
 
 interface Dataset {
   team: TeamSalesRow[]
@@ -475,6 +476,7 @@ export default function App() {
           </section>
         </main>
       )}
+      <ChatPanel />
     </div>
   )
 }
