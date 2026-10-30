@@ -17,6 +17,7 @@ import {
   BarChart3,
   Boxes,
   Building2,
+  LogOut,
   CalendarDays,
   Coins,
   Package,
@@ -34,6 +35,7 @@ import {
   getMonthlyTeamSales,
   getLastLoadedAt,
   getSalesTargets,
+  supabase,
   type SalesTarget,
   type ChannelSalesRow,
   type CustomerSalesRow,
@@ -294,6 +296,9 @@ export default function App() {
             <span>새로고침</span>
           </button>
           <RunButton onDone={load} />
+          <button className="btn ghost" onClick={() => supabase.auth.signOut()} title="로그아웃">
+            <LogOut size={15} />
+          </button>
         </div>
       </header>
 

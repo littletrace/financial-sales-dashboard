@@ -1,15 +1,21 @@
 import { createClient } from '@supabase/supabase-js'
 
 // anon 키는 브라우저 공개용 키이며, 실제 접근 제어는 Supabase RLS가 담당한다.
+// 데이터 읽기는 로그인 + app_metadata.role 이 있는 사용자만 허용 (DB 정책 dashboard_role()).
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ?? 'https://yggjkllldhhvfvcnsgko.supabase.co'
 const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlnZ2prbGxsZGhodmZ2Y25zZ2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzNTU3NzEsImV4cCI6MjEwNDkzMTc3MX0.kV9uuUmjEW4R7ImEsuySYwwO-vB1HcYpGAHyV5J4c7k'
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false },
-})
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+// Supabase Auth 는 이메일 기반이라 아이디를 고정 도메인 이메일로 바꿔 로그인한다 (test → test@dashboard.local)
+const LOGIN_DOMAIN = 'dashboard.local'
+export const toLoginEmail = (id: string) => {
+  const v = id.trim().toLowerCase()
+  return v.includes('@') ? v : `${v}@${LOGIN_DOMAIN}`
+}
 
 export interface SalesMetrics {
   total_qty: number
