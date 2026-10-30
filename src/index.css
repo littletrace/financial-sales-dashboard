@@ -101,6 +101,7 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 .tone-green { --tone: #059669; }
 .tone-amber { --tone: #d97706; }
 .tone-cyan { --tone: #0891b2; }
+.tone-pink { --tone: #e11d48; }
 
 /* ---------- Cards / charts ---------- */
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -168,6 +169,9 @@ tbody tr:hover { background: #f5f9ff; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Responsive ---------- */
+/* 판관비 포함 보기: 카드 6개. 한 줄 6칸은 1,700px 이상에서만 (그보다 좁으면 금액이 잘려 3칸 × 2줄) */
+@media (min-width: 1201px) { .kpis.with-sga { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 1701px) { .kpis.with-sga { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 @media (max-width: 1200px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 860px) {
   .app { padding: 18px 14px 36px; }

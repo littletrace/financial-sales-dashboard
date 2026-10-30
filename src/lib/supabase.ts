@@ -130,6 +130,19 @@ export async function getSalesTargets(): Promise<SalesTarget[]> {
   return (data ?? []).map((r) => ({ ...r, target_amount: Number(r.target_amount) }))
 }
 
+// 영림원 손익계산서(월별) 계정레벨 1. 판관비는 부서 배분 기준이 없어 dept='전체' 만 있음
+export interface PlRow {
+  pl_month: string
+  account_name: string // 매출액 / 매출원가 / 매출총이익 / 판매비와 관리비 / 영업이익
+  amount: number
+}
+
+export async function getPlMonthly(): Promise<PlRow[]> {
+  const { data, error } = await supabase.from('fct_pl_monthly').select('pl_month,account_name,amount').eq('dept', '전체')
+  if (error) throw new Error(`[fct_pl_monthly] ${error.message}`)
+  return (data ?? []).map((r) => ({ ...r, amount: Number(r.amount) }))
+}
+
 export const getMonthlyTeamSales = () =>
   fetchAll<TeamSalesRow>('v_sales_monthly_team', ['sales_month', 'sales_team'])
 

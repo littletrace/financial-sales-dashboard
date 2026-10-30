@@ -20,6 +20,7 @@ import {
   LogOut,
   CalendarDays,
   Coins,
+  Landmark,
   Package,
   Percent,
   RefreshCw,
@@ -35,7 +36,9 @@ import {
   getMonthlyTeamSales,
   getLastLoadedAt,
   getSalesTargets,
+  getPlMonthly,
   supabase,
+  type PlRow,
   type SalesTarget,
   type SalesMetrics,
   type ChannelSalesRow,
@@ -55,7 +58,10 @@ interface Dataset {
   item: ItemSalesRow[]
   customer: CustomerSalesRow[]
   targets: SalesTarget[]
+  pl: PlRow[]
 }
+
+const SGA = '판매비와 관리비'
 
 interface Totals {
   supply: number
@@ -166,6 +172,7 @@ export default function App() {
   const [month, setMonth] = useState(ALL)
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
+  const [withSga, setWithSga] = useState(false) // 판관비 포함 보기: 판관비·영업이익 카드 + 영업이익 선
   const pivotMonths = useMemo(() => [...new Set((data?.team ?? []).map((r) => r.sales_month))].sort(), [data])
   const pivotTeams = useMemo(
     () => [...new Set((data?.team ?? []).map((r) => r.sales_team).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')),
@@ -176,15 +183,16 @@ export default function App() {
     setLoading(true)
     setError(null)
     try {
-      const [teamRows, channel, item, customer, targets, lastLoaded] = await Promise.all([
+      const [teamRows, channel, item, customer, targets, pl, lastLoaded] = await Promise.all([
         getMonthlyTeamSales(),
         getMonthlyChannelSales(),
         getMonthlyItemSales(),
         getMonthlyCustomerSales(),
         getSalesTargets(),
+        getPlMonthly(),
         getLastLoadedAt(),
       ])
-      setData({ team: teamRows, channel, item, customer, targets })
+      setData({ team: teamRows, channel, item, customer, targets, pl })
       setLoadedAt(lastLoaded)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -214,15 +222,34 @@ export default function App() {
 
   const kpi = useMemo(() => sum(data?.team.filter((r) => inMonth(r) && inTeam(r)) ?? []), [data, inMonth, inTeam])
 
+  // 판관비: 영림원 손익계산서 월 합계. 부서 배분 기준이 없어 부서 선택 시엔 표시 안 함
+  // 영업이익 = DB 매출이익(가결산·추정 포함) - 판관비. 영림원 매출원가가 0인 월 = 결산 전 (판관비도 진행 중일 수 있음)
+  const sgaOf = useMemo(() => new Map((data?.pl ?? []).filter((r) => r.account_name === SGA).map((r) => [r.pl_month, r.amount])), [data])
+  const openMonths = useMemo(
+    () => new Set((data?.pl ?? []).filter((r) => r.account_name === '매출원가' && r.amount === 0).map((r) => r.pl_month)),
+    [data],
+  )
+  const sga = useMemo(() => {
+    if (!withSga || team !== ALL) return null
+    const ms = months.filter((m) => inMonth({ sales_month: m }) && sgaOf.has(m))
+    if (!ms.length) return null
+    return { amount: ms.reduce((s, m) => s + sgaOf.get(m)!, 0), open: ms.filter((m) => openMonths.has(m)) }
+  }, [withSga, team, months, inMonth, sgaOf, openMonths])
+  const opProfit = sga ? kpi.profit - sga.amount : null
+
   // 월별 추이는 기간 필터와 무관하게 전체 월을 보여주고, 선택 월만 강조
   const trend = useMemo(() => {
     const byMonth = groupBy(data?.team.filter(inTeam) ?? [], (r) => r.sales_month)
     return months.map((m) => {
       const t = sum(byMonth.get(m) ?? [])
       const prov = provMonths.has(m)
-      return { month: m, label: monthLabel(m) + (prov ? '*' : ''), prov, supply: t.supply, profit: t.profit, rate: rate(t.profit, t.costedSupply) }
+      const s = withSga && team === ALL ? sgaOf.get(m) : undefined
+      return {
+        month: m, label: monthLabel(m) + (prov ? '*' : ''), prov, supply: t.supply, profit: t.profit, rate: rate(t.profit, t.costedSupply),
+        opProfit: s === undefined ? null : t.profit - s,
+      }
     })
-  }, [data, months, inTeam, provMonths])
+  }, [data, months, inTeam, provMonths, withSga, team, sgaOf])
 
   const teamSummary = useMemo<TeamSummary[]>(() => {
     const rows = data?.team.filter(inMonth) ?? []
@@ -304,7 +331,21 @@ export default function App() {
         : fmtCompact(kpi.profit) + '원',
     },
     { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.costedSupply)), sub: `매출이익 ÷ 원가 반영 매출${provNote}`, icon: Percent, tone: 'amber', prov: true },
-    { label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', icon: Boxes, tone: 'cyan', prov: false },
+    ...(withSga
+      ? [
+          {
+            label: '판관비', value: sga ? fmtWon(sga.amount) : '-', icon: Landmark, tone: 'cyan', prov: false,
+            sub: team !== ALL ? '부서별 배분 기준 미정 (전체 부서만 표시)' : sga ? '영림원 손익계산서 기준' : '판관비 미적재',
+          },
+          {
+            label: '영업이익', value: opProfit === null ? '-' : fmtWon(opProfit), icon: TrendingUp, prov: true,
+            tone: opProfit !== null && opProfit < 0 ? 'pink' : 'green',
+            sub: sga?.open.length
+              ? `결산 전 ${sga.open.map(monthLabel).join('·')} 포함 · 매출이익 − 판관비`
+              : opProfit === null ? '전체 부서에서만 표시' : `영업이익률 ${fmtPct(rate(opProfit, kpi.supply))}`,
+          },
+        ]
+      : [{ label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', icon: Boxes, tone: 'cyan', prov: false }]),
   ]
 
   const periodLabel = month === ALL ? '전체 기간' : `${month.slice(0, 4)}년 ${monthLabel(month)}`
@@ -353,6 +394,15 @@ export default function App() {
             <RefreshCw size={15} className={loading ? 'spin' : ''} />
             <span>새로고침</span>
           </button>
+          <button
+            className={withSga ? 'btn' : 'btn ghost'}
+            onClick={() => setWithSga((v) => !v)}
+            aria-pressed={withSga}
+            title="판관비·영업이익 표시 전환 (영림원 손익계산서 기준, 전체 부서만)"
+          >
+            <Landmark size={15} />
+            <span>{withSga ? '판관비 포함' : '판관비 미포함'}</span>
+          </button>
           <RunButton onDone={load} />
           <button className="btn ghost" onClick={() => supabase.auth.signOut()} title="로그아웃">
             <LogOut size={15} />
@@ -397,7 +447,7 @@ export default function App() {
         </div>
       ) : (
         <main className={loading ? 'refreshing' : ''}>
-          <section className="kpis">
+          <section className={withSga ? 'kpis with-sga' : 'kpis'}>
             {kpiCards.map(({ label, value, sub, icon: Icon, tone, prov }, i) => (
               <div key={label} className={`kpi glass tone-${tone} ${prov && kpi.provSupply ? 'is-prov' : ''}`} style={{ animationDelay: `${i * 60}ms` }}>
                 <div className="kpi-head">
@@ -421,7 +471,10 @@ export default function App() {
             <div className="card glass span-2">
               <div className="card-head">
                 <h2>월별 매출 추이</h2>
-                <span className="muted small">막대: 매출액 · 선: 매출이익{provMonths.size > 0 && ' · * 빗금: 이익 가결산'}</span>
+                <span className="muted small">
+                  막대: 매출액 · 선: 매출이익{withSga && team === ALL && ' · 주황 선: 영업이익(매출이익 − 판관비)'}
+                  {provMonths.size > 0 && ' · * 빗금: 이익 가결산'}
+                </span>
               </div>
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -443,7 +496,7 @@ export default function App() {
                     cursor={{ fill: 'rgba(49,130,246,0.06)' }}
                     formatter={(v, name, item) => [
                       fmtWon(Number(v)),
-                      name === 'supply' ? '매출액' : item.payload.prov ? '매출이익 (가결산)' : '매출이익',
+                      name === 'supply' ? '매출액' : name === 'opProfit' ? '영업이익' : item.payload.prov ? '매출이익 (가결산)' : '매출이익',
                     ]}
                   />
                   <Bar dataKey="supply" radius={[6, 6, 0, 0]} maxBarSize={44}>
@@ -472,6 +525,9 @@ export default function App() {
                       />
                     )}
                   />
+                  {withSga && team === ALL && (
+                    <Line type="monotone" dataKey="opProfit" stroke="#f97316" strokeWidth={2.5} dot={{ r: 3 }} />
+                  )}
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
