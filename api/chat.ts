@@ -36,7 +36,7 @@ async function authed(request: Request): Promise<string | null> {
 const month = { type: 'string', description: 'YYYY-MM' }
 const strings = (description: string) => ({ type: 'array', items: { type: 'string' }, description })
 const METRICS =
-  'total_qty 수량, total_supply_amount 매출액, total_cost 원가, total_profit 매출이익, costed_supply_amount 원가 반영 매출, profit_rate 이익률(%), row_count 건수, provisional_supply_amount 가결산 매출, provisional_profit 가결산 매출이익, set_estimated_supply_amount 세트추정 매출, set_estimated_profit 세트추정 매출이익'
+  'total_qty 수량, total_supply_amount 매출액, total_cost 원가, total_profit 매출이익, costed_supply_amount 원가 반영 매출, profit_rate 이익률(%), row_count 건수, provisional_supply_amount 가결산 매출, provisional_profit 가결산 매출이익, set_estimated_supply_amount 세트추정 매출, set_estimated_profit 세트추정 매출이익, purchase_estimated_supply_amount 구매가추정 매출, purchase_estimated_profit 구매가추정 매출이익'
 
 const TOOLS = [
   {
@@ -102,7 +102,8 @@ const system = () => `너는 시즌글라스 매출 대시보드의 데이터 �
 * 원가는 재고금액상세조회(결산 후 월 1회 적재)의 품목단위당원가 × 수량.
 * 운송비·식음료 기타·상품a/s·제품a/s·a/s부품·적립금차감은 원가 0으로 매출·이익·원가 반영 매출에 포함한다(손익계산서 매출액 기준).
 * 세트추정: 원가 이력이 없는 선물세트는 구성품 원가 합으로 추정했다(포장재 제외). set_estimated_* 가 있는 원가·이익을 답할 때는 '세트추정'이라고 밝힌다.
-* 위에 해당하지 않고 원가 이력이 없는 품목(신규 상품 등)은 원가가 없다(null).
+* 구매가추정: 그 밖에 원가 이력이 없는 품목은 재고금액상세조회의 최근 구매단가로 추정했다(부대비용 제외). purchase_estimated_* 가 있는 원가·이익을 답할 때는 '구매가추정'이라고 밝힌다.
+* 구매 기록도 없는 품목만 원가가 없다(null).
 * 가결산: 원가가 아직 확정되지 않은 월(결산 전)은 품목별 가장 최근 확정 원가로 원가·이익을 계산한 추정치다. 뷰의 provisional_supply_amount 가 0보다 큰 월이 가결산 월이다. 가결산 월의 원가·이익·이익률을 답할 때는 반드시 '가결산(결산 후 바뀔 수 있음)'이라고 밝힌다. 매출액·수량은 확정 값이다.
 * 이익률(%) = 매출이익 ÷ 원가 반영 매출 × 100. 분모는 전체 매출액이 아니라 원가가 있는 행의 매출액이다. 직접 계산할 때도 이 정의를 따른다.
 * 매출목표는 부가세 별도. 달성률 = 실적 ÷ 목표 × 100.

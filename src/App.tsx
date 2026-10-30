@@ -67,6 +67,8 @@ interface Totals {
   provProfit: number // 가결산 매출이익
   setSupply: number // 세트추정 매출 (구성품 원가 합으로 추정)
   setProfit: number
+  buySupply: number // 구매가추정 매출 (재고금액상세조회 구매단가로 추정)
+  buyProfit: number
 }
 
 interface TeamSummary extends Totals {
@@ -115,8 +117,10 @@ function sum(rows: SalesMetrics[]): Totals {
       provProfit: acc.provProfit + r.provisional_profit,
       setSupply: acc.setSupply + r.set_estimated_supply_amount,
       setProfit: acc.setProfit + r.set_estimated_profit,
+      buySupply: acc.buySupply + r.purchase_estimated_supply_amount,
+      buyProfit: acc.buyProfit + r.purchase_estimated_profit,
     }),
-    { supply: 0, costedSupply: 0, cost: 0, profit: 0, qty: 0, provSupply: 0, provProfit: 0, setSupply: 0, setProfit: 0 },
+    { supply: 0, costedSupply: 0, cost: 0, profit: 0, qty: 0, provSupply: 0, provProfit: 0, setSupply: 0, setProfit: 0, buySupply: 0, buyProfit: 0 },
   )
 }
 
@@ -134,6 +138,13 @@ function SetBadge({ t }: { t: Totals }) {
   if (!t.setSupply) return null
   const tip = `세트 매출 ${fmtWon(t.setSupply)}은 원가 이력이 없어 구성품 원가 합으로 추정했습니다 (포장재 원가 제외)`
   return <span className="badge-prov badge-set" title={tip}>세트추정</span>
+}
+
+/** 원가 이력 없는 품목을 재고금액상세조회 구매단가로 추정한 매출이 섞이면 '구매가추정' 배지 */
+function BuyBadge({ t }: { t: Totals }) {
+  if (!t.buySupply) return null
+  const tip = `매출 ${fmtWon(t.buySupply)}은 원가 이력이 없어 최근 구매단가(구매금액 ÷ 구매수량)로 추정했습니다 (운임·관세 등 부대비용 제외)`
+  return <span className="badge-prov badge-set" title={tip}>구매가추정</span>
 }
 
 function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
@@ -286,10 +297,10 @@ export default function App() {
     {
       label: '총 매출이익', value: fmtWon(kpi.profit), icon: TrendingUp, tone: 'green', prov: true,
       // 확정 = 전체 − 가결산 − 세트추정 (원가 0 비대상은 확정에 포함)
-      sub: kpi.provSupply || kpi.setSupply
-        ? [`확정 ${fmtCompact(kpi.profit - kpi.provProfit - kpi.setProfit)}원`,
+      sub: kpi.provSupply || kpi.setSupply || kpi.buySupply
+        ? [`확정 ${fmtCompact(kpi.profit - kpi.provProfit - kpi.setProfit - kpi.buyProfit)}원`,
            kpi.provSupply && `가결산 ${fmtCompact(kpi.provProfit)}원`,
-           kpi.setSupply && `세트추정 ${fmtCompact(kpi.setProfit)}원`].filter(Boolean).join(' · ')
+           (kpi.setSupply || kpi.buySupply) && `추정 ${fmtCompact(kpi.setProfit + kpi.buyProfit)}원`].filter(Boolean).join(' · ')
         : fmtCompact(kpi.profit) + '원',
     },
     { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.costedSupply)), sub: `매출이익 ÷ 원가 반영 매출${provNote}`, icon: Percent, tone: 'amber', prov: true },
@@ -367,12 +378,14 @@ export default function App() {
           </span>
         </div>
       )}
-      {kpi.setSupply !== 0 && (
+      {(kpi.setSupply !== 0 || kpi.buySupply !== 0) && (
         <div className="prov-notice set-notice" role="note">
-          <span className="badge-prov badge-set">세트추정</span>
+          <span className="badge-prov badge-set">추정</span>
           <span>
-            원가 이력이 없는 선물세트 매출 <b>{fmtCompact(kpi.setSupply)}원</b>은 구성품 원가를 합해 추정한 원가로 계산했습니다(포장재 제외).
-            운송비·식음료 기타·a/s·적립금차감은 원가 0으로 매출·이익에 포함됩니다.
+            원가 이력이 없는 매출은 원가를 추정해 계산했습니다.
+            {kpi.setSupply !== 0 && <> <b>세트추정 {fmtCompact(kpi.setSupply)}원</b>: 선물세트 구성품 원가 합(포장재 제외).</>}
+            {kpi.buySupply !== 0 && <> <b>구매가추정 {fmtCompact(kpi.buySupply)}원</b>: 최근 구매단가(부대비용 제외).</>}
+            {' '}운송비·식음료 기타·a/s·적립금차감은 원가 0으로 매출·이익에 포함됩니다.
           </span>
         </div>
       )}
@@ -392,6 +405,7 @@ export default function App() {
                     {label}
                     {prov && <ProvBadge t={kpi} />}
                     {prov && <SetBadge t={kpi} />}
+                    {prov && <BuyBadge t={kpi} />}
                   </span>
                   <span className="kpi-icon">
                     <Icon size={17} />
@@ -581,10 +595,11 @@ export default function App() {
 const money = <T extends Totals>(key: keyof Totals) => (r: T) => fmtWon(r[key])
 // 매출이익 칸: 가결산이 섞인 행은 배지 + 옅은 주황 배경
 const profitCell = <T extends Totals & { costMonth?: string | null }>(r: T) => (
-  <span className={r.provSupply || r.setSupply ? 'prov' : ''}>
+  <span className={r.provSupply || r.setSupply || r.buySupply ? 'prov' : ''}>
     {fmtWon(r.profit)}
     <ProvBadge t={r} costMonth={r.costMonth} />
     <SetBadge t={r} />
+    <BuyBadge t={r} />
   </span>
 )
 const pct = <T extends { rate: number | null }>(r: T) => (
