@@ -24,6 +24,8 @@ export interface SalesMetrics {
   total_profit: number
   profit_rate: number | null
   costed_supply_amount: number // 원가가 있는 행의 매출액
+  provisional_supply_amount: number // 가결산 매출: 원가 미확정 월에 품목별 최근 원가를 쓴 행
+  provisional_profit: number // 가결산 매출이익
 }
 
 export interface TeamSalesRow extends SalesMetrics {
@@ -47,6 +49,7 @@ export interface ItemSalesRow extends SalesMetrics {
   item_name: string
   item_code: string
   avg_unit_price: number | null
+  cost_month: string | null // 적용 원가월 (가결산이면 이전 월)
 }
 
 // 마지막 DB 적재 시각: 적재 스크립트가 매번 전 기간을 재계산하며 updated_at 을 갱신함
@@ -76,6 +79,8 @@ const NUMERIC_KEYS = [
   'profit_rate',
   'avg_unit_price',
   'costed_supply_amount',
+  'provisional_supply_amount',
+  'provisional_profit',
 ] as const
 
 // PostgREST 응답의 numeric 컬럼을 number로 정규화

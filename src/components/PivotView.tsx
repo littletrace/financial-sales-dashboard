@@ -119,7 +119,7 @@ function allParents(n: Node, out: string[] = []): string[] {
   return out
 }
 
-export function PivotView({ months, teams }: { months: string[]; teams: string[] }) {
+export function PivotView({ months, teams, provMonths }: { months: string[]; teams: string[]; provMonths: Set<string> }) {
   const [presetId, setPresetId] = useState(PRESETS[0].id)
   const preset = PRESETS.find((p) => p.id === presetId)!
   const [from, setFrom] = useState(months[0] ?? '')
@@ -165,6 +165,10 @@ export function PivotView({ months, teams }: { months: string[]; teams: string[]
   const tree = useMemo(() => buildTree(rows, measure, query), [rows, measure, query])
   const visible = useMemo(() => flatten(tree, expanded), [tree, expanded])
   const cols = months.filter((m) => (!from || m >= from) && (!to || m <= to))
+  // 원가·이익·원가반영매출만 가결산 영향을 받음 (판매금액·수량은 확정 값)
+  const costMeasure = measure === 'cost' || measure === 'profit' || measure === 'costed'
+  const provCls = (m: string) => (costMeasure && provMonths.has(m) ? 'num prov' : 'num')
+  const provTotal = costMeasure && cols.some((m) => provMonths.has(m))
   const toggle = (key: string) =>
     setExpanded((s) => {
       const next = new Set(s)
@@ -252,7 +256,10 @@ export function PivotView({ months, teams }: { months: string[]; teams: string[]
             <tr>
               <th>{preset.rows.map((f) => FIELD_LABEL[f]).join(' / ')}</th>
               {cols.map((m) => (
-                <th key={m} className="num">{monthLabel(m)}</th>
+                <th key={m} className="num">
+                  {monthLabel(m)}
+                  {provMonths.has(m) && <span className="badge-prov" title="원가 미확정: 품목별 최근 확정 원가로 계산">가결산</span>}
+                </th>
               ))}
               <th className="num">합계</th>
             </tr>
@@ -278,9 +285,9 @@ export function PivotView({ months, teams }: { months: string[]; teams: string[]
                   )}
                 </td>
                 {cols.map((m) => (
-                  <td key={m} className="num">{n.values.has(m) ? fmtNumber(n.values.get(m)!) : ''}</td>
+                  <td key={m} className={provCls(m)}>{n.values.has(m) ? fmtNumber(n.values.get(m)!) : ''}</td>
                 ))}
-                <td className="num strong">{fmtNumber(n.total)}</td>
+                <td className={`num strong ${provTotal ? 'prov' : ''}`}>{fmtNumber(n.total)}</td>
               </tr>
             ))}
           </tbody>
@@ -289,7 +296,7 @@ export function PivotView({ months, teams }: { months: string[]; teams: string[]
               <tr>
                 <td className="pivot-label">총계</td>
                 {cols.map((m) => (
-                  <td key={m} className="num">{fmtNumber(tree.values.get(m) ?? 0)}</td>
+                  <td key={m} className={provCls(m)}>{fmtNumber(tree.values.get(m) ?? 0)}</td>
                 ))}
                 <td className="num">{fmtNumber(tree.total)}</td>
               </tr>
@@ -298,7 +305,8 @@ export function PivotView({ months, teams }: { months: string[]; teams: string[]
         </table>
       </div>
       <p className="muted small">
-        구글시트 조회 탭의 피벗 설정을 옮긴 화면입니다. 매출원가·매출이익은 원가표가 있는 달만 집계됩니다.
+        구글시트 조회 탭의 피벗 설정을 옮긴 화면입니다. 원가가 확정되지 않은 달(가결산)의 매출원가·매출이익은
+        품목별 가장 최근 확정 원가로 계산한 값이며, 원가 이력이 없는 품목은 빠집니다.
       </p>
     </div>
   )

@@ -226,6 +226,23 @@ tbody tr:hover { background: #f5f9ff; }
 .run-error { margin: 0; color: #e5484d; font-size: 0.85rem; }
 .run-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+/* ---------- 가결산 (원가 미확정) ---------- */
+/* 색만으로 구분하지 않도록 항상 '가결산' 글자 배지와 함께 씀 */
+.badge-prov {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; vertical-align: 1px;
+  font-size: 0.68rem; font-weight: 700; font-style: normal; line-height: 1.5; white-space: nowrap;
+  background: #ffedd5; color: #b45309; border: 1px solid #fed7aa; cursor: help;
+}
+.prov { font-style: italic; }
+td.prov, span.prov { background: #fff7ed; }
+span.prov { padding: 2px 4px; border-radius: 6px; }
+.prov-notice {
+  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; padding: 12px 16px; border-radius: 14px;
+  background: #fff7ed; border: 1px dashed #fdba74; color: #7c2d12; font-size: 0.86rem; line-height: 1.6;
+}
+.prov-notice .badge-prov { margin-left: 0; flex: none; margin-top: 2px; }
+.kpi.is-prov { border-style: dashed; border-color: #fdba74; }
+
 /* ---------- Login ---------- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .login-card { display: grid; gap: 12px; box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.18); }

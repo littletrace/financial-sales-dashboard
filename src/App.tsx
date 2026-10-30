@@ -37,6 +37,7 @@ import {
   getSalesTargets,
   supabase,
   type SalesTarget,
+  type SalesMetrics,
   type ChannelSalesRow,
   type CustomerSalesRow,
   type ItemSalesRow,
@@ -61,6 +62,8 @@ interface Totals {
   cost: number
   profit: number
   qty: number
+  provSupply: number // 가결산 매출 (원가 미확정 월)
+  provProfit: number // 가결산 매출이익
 }
 
 interface TeamSummary extends Totals {
@@ -77,6 +80,7 @@ interface ItemSummary extends Totals {
   item_type: string
   rate: number | null
   unit_price: number
+  costMonth: string | null // 가결산에 쓴 원가월
 }
 
 interface CustomerSummary extends Totals {
@@ -96,7 +100,7 @@ const tooltipStyle = {
   color: '#191f28',
 }
 
-function sum(rows: { total_supply_amount: number; costed_supply_amount: number; total_cost: number; total_profit: number; total_qty: number }[]): Totals {
+function sum(rows: SalesMetrics[]): Totals {
   return rows.reduce(
     (acc, r) => ({
       supply: acc.supply + r.total_supply_amount,
@@ -104,9 +108,20 @@ function sum(rows: { total_supply_amount: number; costed_supply_amount: number; 
       cost: acc.cost + r.total_cost,
       profit: acc.profit + r.total_profit,
       qty: acc.qty + r.total_qty,
+      provSupply: acc.provSupply + r.provisional_supply_amount,
+      provProfit: acc.provProfit + r.provisional_profit,
     }),
-    { supply: 0, costedSupply: 0, cost: 0, profit: 0, qty: 0 },
+    { supply: 0, costedSupply: 0, cost: 0, profit: 0, qty: 0, provSupply: 0, provProfit: 0 },
   )
+}
+
+/** 이익 칸에 가결산이 섞였으면 '가결산' 배지 (색만으로 구분하지 않도록 글자로 표기) */
+function ProvBadge({ t, costMonth }: { t: Totals; costMonth?: string | null }) {
+  if (!t.provSupply) return null
+  const share = t.costedSupply ? Math.round((t.provSupply / t.costedSupply) * 100) : 100
+  const tip = `원가 미확정 월 매출 ${fmtWon(t.provSupply)}(원가 반영 매출의 ${share}%)은 품목별 최근 확정 원가로 계산한 가결산입니다`
+    + (costMonth ? ` · 적용 원가 ${monthLabel(costMonth)}` : '')
+  return <span className="badge-prov" title={tip}>가결산</span>
 }
 
 function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
@@ -160,6 +175,12 @@ export default function App() {
   }, [load])
 
   const months = useMemo(() => [...new Set(data?.team.map((r) => r.sales_month))].sort(), [data])
+  // 원가 미확정(가결산) 월: 부서 필터와 무관하게 전체 기준으로 판단
+  const provMonths = useMemo(
+    () => new Set((data?.team ?? []).filter((r) => r.provisional_supply_amount !== 0).map((r) => r.sales_month)),
+    [data],
+  )
+  const provInView = months.filter((m) => provMonths.has(m) && (month === ALL || m === month))
   const teams = useMemo(
     () => [...new Set(data?.team.map((r) => r.sales_team))].sort((a, b) => a.localeCompare(b, 'ko')),
     [data],
@@ -175,9 +196,10 @@ export default function App() {
     const byMonth = groupBy(data?.team.filter(inTeam) ?? [], (r) => r.sales_month)
     return months.map((m) => {
       const t = sum(byMonth.get(m) ?? [])
-      return { month: m, label: monthLabel(m), supply: t.supply, profit: t.profit, rate: rate(t.profit, t.costedSupply) }
+      const prov = provMonths.has(m)
+      return { month: m, label: monthLabel(m) + (prov ? '*' : ''), prov, supply: t.supply, profit: t.profit, rate: rate(t.profit, t.costedSupply) }
     })
-  }, [data, months, inTeam])
+  }, [data, months, inTeam, provMonths])
 
   const teamSummary = useMemo<TeamSummary[]>(() => {
     const rows = data?.team.filter(inMonth) ?? []
@@ -217,6 +239,7 @@ export default function App() {
     return [...groupBy(rows, (r) => `${r.item_code}|${r.item_name}`)]
       .map(([, list]) => {
         const t = sum(list)
+        const provCost = list.filter((r) => r.provisional_supply_amount !== 0).map((r) => r.cost_month ?? '').sort()
         return {
           item_name: list[0].item_name,
           item_code: list[0].item_code,
@@ -224,6 +247,7 @@ export default function App() {
           ...t,
           rate: rate(t.profit, t.costedSupply),
           unit_price: t.qty ? t.supply / t.qty : 0,
+          costMonth: provCost.at(-1) || null,
         }
       })
       .sort((a, b) => b.supply - a.supply)
@@ -242,12 +266,17 @@ export default function App() {
       .slice(0, 30)
   }, [data, inMonth, inTeam])
 
+  const provShare = kpi.costedSupply ? (kpi.provSupply / kpi.costedSupply) * 100 : 0
+  const provNote = kpi.provSupply ? ` · 가결산 ${provShare.toFixed(0)}%` : ''
   const kpiCards = [
-    { label: '총 매출액', value: fmtWon(kpi.supply), sub: fmtCompact(kpi.supply) + '원', icon: Wallet, tone: 'blue' },
-    { label: '총 원가', value: fmtWon(kpi.cost), sub: `원가 반영 매출 ${fmtCompact(kpi.costedSupply)}원`, icon: Coins, tone: 'violet' },
-    { label: '총 매출이익', value: fmtWon(kpi.profit), sub: fmtCompact(kpi.profit) + '원', icon: TrendingUp, tone: 'green' },
-    { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.costedSupply)), sub: '매출이익 ÷ 원가 반영 매출', icon: Percent, tone: 'amber' },
-    { label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', icon: Boxes, tone: 'cyan' },
+    { label: '총 매출액', value: fmtWon(kpi.supply), sub: fmtCompact(kpi.supply) + '원', icon: Wallet, tone: 'blue', prov: false },
+    { label: '총 원가', value: fmtWon(kpi.cost), sub: `원가 반영 매출 ${fmtCompact(kpi.costedSupply)}원${provNote}`, icon: Coins, tone: 'violet', prov: true },
+    {
+      label: '총 매출이익', value: fmtWon(kpi.profit), icon: TrendingUp, tone: 'green', prov: true,
+      sub: kpi.provSupply ? `확정 ${fmtCompact(kpi.profit - kpi.provProfit)}원 · 가결산 ${fmtCompact(kpi.provProfit)}원` : fmtCompact(kpi.profit) + '원',
+    },
+    { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.costedSupply)), sub: `매출이익 ÷ 원가 반영 매출${provNote}`, icon: Percent, tone: 'amber', prov: true },
+    { label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', icon: Boxes, tone: 'cyan', prov: false },
   ]
 
   const periodLabel = month === ALL ? '전체 기간' : `${month.slice(0, 4)}년 ${monthLabel(month)}`
@@ -276,6 +305,7 @@ export default function App() {
               {months.map((m) => (
                 <option key={m} value={m}>
                   {m.slice(0, 4)}년 {monthLabel(m)}
+                  {provMonths.has(m) ? ' (가결산)' : ''}
                 </option>
               ))}
             </select>
@@ -311,6 +341,16 @@ export default function App() {
         </div>
       )}
 
+      {provInView.length > 0 && (
+        <div className="prov-notice" role="note">
+          <span className="badge-prov">가결산</span>
+          <span>
+            <b>{provInView.map(monthLabel).join(', ')}</b>은 원가가 확정되지 않아 품목별 가장 최근 확정 원가로 계산한 값입니다.
+            원가·이익·이익률이 결산 후 바뀔 수 있습니다. 차트의 <b>*</b> 표시·빗금 막대, 표의 <span className="badge-prov">가결산</span> 표시가 해당 값입니다.
+          </span>
+        </div>
+      )}
+
       {loading && !data ? (
         <div className="loading">
           <RefreshCw size={28} className="spin" />
@@ -319,10 +359,13 @@ export default function App() {
       ) : (
         <main className={loading ? 'refreshing' : ''}>
           <section className="kpis">
-            {kpiCards.map(({ label, value, sub, icon: Icon, tone }, i) => (
-              <div key={label} className={`kpi glass tone-${tone}`} style={{ animationDelay: `${i * 60}ms` }}>
+            {kpiCards.map(({ label, value, sub, icon: Icon, tone, prov }, i) => (
+              <div key={label} className={`kpi glass tone-${tone} ${prov && kpi.provSupply ? 'is-prov' : ''}`} style={{ animationDelay: `${i * 60}ms` }}>
                 <div className="kpi-head">
-                  <span className="muted">{label}</span>
+                  <span className="muted">
+                    {label}
+                    {prov && <ProvBadge t={kpi} />}
+                  </span>
                   <span className="kpi-icon">
                     <Icon size={17} />
                   </span>
@@ -337,7 +380,7 @@ export default function App() {
             <div className="card glass span-2">
               <div className="card-head">
                 <h2>월별 매출 추이</h2>
-                <span className="muted small">막대: 매출액 · 선: 매출이익</span>
+                <span className="muted small">막대: 매출액 · 선: 매출이익{provMonths.size > 0 && ' · * 빗금: 이익 가결산'}</span>
               </div>
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
@@ -346,6 +389,10 @@ export default function App() {
                       <stop offset="0%" stopColor="#3182f6" stopOpacity={0.95} />
                       <stop offset="100%" stopColor="#3182f6" stopOpacity={0.45} />
                     </linearGradient>
+                    <pattern id="barHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                      <rect width="6" height="6" fill="#3182f6" fillOpacity={0.35} />
+                      <line x1="0" y1="0" x2="0" y2="6" stroke="#3182f6" strokeWidth={2.5} />
+                    </pattern>
                   </defs>
                   <CartesianGrid stroke="#eef0f3" vertical={false} />
                   <XAxis dataKey="label" stroke="#64748b" tickLine={false} axisLine={false} />
@@ -353,18 +400,37 @@ export default function App() {
                   <Tooltip
                     contentStyle={tooltipStyle}
                     cursor={{ fill: 'rgba(49,130,246,0.06)' }}
-                    formatter={(v, name) => [fmtWon(Number(v)), name === 'supply' ? '매출액' : '매출이익']}
+                    formatter={(v, name, item) => [
+                      fmtWon(Number(v)),
+                      name === 'supply' ? '매출액' : item.payload.prov ? '매출이익 (가결산)' : '매출이익',
+                    ]}
                   />
                   <Bar dataKey="supply" radius={[6, 6, 0, 0]} maxBarSize={44}>
                     {trend.map((t) => (
                       <Cell
                         key={t.month}
-                        fill="url(#barGrad)"
+                        fill={t.prov ? 'url(#barHatch)' : 'url(#barGrad)'}
                         fillOpacity={month === ALL || month === t.month ? 1 : 0.3}
                       />
                     ))}
                   </Bar>
-                  <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line
+                    type="monotone"
+                    dataKey="profit"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    dot={(p: { cx?: number; cy?: number; index?: number }) => (
+                      <circle
+                        key={p.index}
+                        cx={p.cx}
+                        cy={p.cy}
+                        r={trend[p.index ?? 0]?.prov ? 4 : 3}
+                        fill={trend[p.index ?? 0]?.prov ? '#fff' : '#10b981'}
+                        stroke="#10b981"
+                        strokeWidth={2}
+                      />
+                    )}
+                  />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -466,7 +532,7 @@ export default function App() {
                   note={team === ALL ? undefined : '품목 집계에는 부서 필터가 적용되지 않습니다'}
                 />
               )}
-              {tab === 'pivot' && <PivotView months={pivotMonths} teams={pivotTeams} />}
+              {tab === 'pivot' && <PivotView months={pivotMonths} teams={pivotTeams} provMonths={provMonths} />}
               {tab === 'customer' && (
                 <DataTable
                   rows={topCustomers}
@@ -485,6 +551,13 @@ export default function App() {
 }
 
 const money = <T extends Totals>(key: keyof Totals) => (r: T) => fmtWon(r[key])
+// 매출이익 칸: 가결산이 섞인 행은 배지 + 옅은 주황 배경
+const profitCell = <T extends Totals & { costMonth?: string | null }>(r: T) => (
+  <span className={r.provSupply ? 'prov' : ''}>
+    {fmtWon(r.profit)}
+    <ProvBadge t={r} costMonth={r.costMonth} />
+  </span>
+)
 const pct = <T extends { rate: number | null }>(r: T) => (
   <span className={r.rate !== null && r.rate < 0 ? 'neg' : ''}>{fmtPct(r.rate)}</span>
 )
@@ -501,7 +574,7 @@ function teamColumns(selected: string): Column<TeamSummary>[] {
     { key: 'achieve', label: '달성률', align: 'right', render: (r) => fmtPct(r.achieve) },
     { key: 'costedSupply', label: '원가 반영 매출', align: 'right', render: money('costedSupply') },
     { key: 'cost', label: '원가', align: 'right', render: money('cost') },
-    { key: 'profit', label: '매출이익', align: 'right', render: money('profit') },
+    { key: 'profit', label: '매출이익', align: 'right', render: profitCell },
     { key: 'rate', label: '이익률', align: 'right', render: pct },
     { key: 'qty', label: '수량', align: 'right', render: (r) => fmtNumber(r.qty) },
     {
@@ -523,7 +596,7 @@ const itemColumns: Column<ItemSummary>[] = [
   { key: 'item_code', label: '품목코드', render: (r) => r.item_code || <span className="dim">-</span> },
   { key: 'item_type', label: '분류' },
   { key: 'supply', label: '매출액', align: 'right', render: money('supply') },
-  { key: 'profit', label: '매출이익', align: 'right', render: money('profit') },
+  { key: 'profit', label: '매출이익', align: 'right', render: profitCell },
   { key: 'rate', label: '이익률', align: 'right', render: pct },
   { key: 'qty', label: '수량', align: 'right', render: (r) => fmtNumber(r.qty) },
   { key: 'unit_price', label: '평균단가', align: 'right', render: (r) => fmtWon(r.unit_price) },
@@ -535,7 +608,7 @@ const customerColumns: Column<CustomerSummary>[] = [
   { key: 'supply', label: '매출액', align: 'right', render: money('supply') },
   { key: 'costedSupply', label: '원가 반영 매출', align: 'right', render: money('costedSupply') },
   { key: 'cost', label: '원가', align: 'right', render: money('cost') },
-  { key: 'profit', label: '매출이익', align: 'right', render: money('profit') },
+  { key: 'profit', label: '매출이익', align: 'right', render: profitCell },
   { key: 'rate', label: '이익률', align: 'right', render: pct },
   { key: 'qty', label: '수량', align: 'right', render: (r) => fmtNumber(r.qty) },
 ]
