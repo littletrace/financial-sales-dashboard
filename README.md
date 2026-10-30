@@ -15,6 +15,8 @@ npm run build    # dist/ 생성 (clean → tsc → vite build)
 - Root Directory: 저장소 루트(기본값)
 - Framework Preset: Vite (vercel.json에 지정됨), Output: `dist`
 - 선택 환경변수: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (미지정 시 코드 내 기본값 사용)
+- AI 질문(`api/chat.ts`): 로그인 토큰으로 인증하고 그 사용자 권한으로 DB를 조회 (role 없는 계정은 거부). 환경변수 `ANTHROPIC_API_KEY`, 선택 `CHAT_MODEL`(기본 `claude-haiku-5-5`). 점검: `node scripts/check-chat-api.ts`
+- 점검: `node scripts/check-run-api.ts`, `node scripts/check-chat-api.ts`
 
 ## 참고
 
