@@ -242,6 +242,9 @@ span.prov { padding: 2px 4px; border-radius: 6px; }
 }
 .prov-notice .badge-prov { margin-left: 0; flex: none; margin-top: 2px; }
 .kpi.is-prov { border-style: dashed; border-color: #fdba74; }
+/* 세트추정: 가결산과 구분되도록 보라 계열 */
+.badge-set { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
+.set-notice { background: #faf5ff; border-color: #d8b4fe; color: #581c87; }
 
 /* ---------- Login ---------- */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }

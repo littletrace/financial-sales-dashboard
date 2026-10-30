@@ -26,6 +26,8 @@ export interface SalesMetrics {
   costed_supply_amount: number // 원가가 있는 행의 매출액
   provisional_supply_amount: number // 가결산 매출: 원가 미확정 월에 품목별 최근 원가를 쓴 행
   provisional_profit: number // 가결산 매출이익
+  set_estimated_supply_amount: number // 세트추정 매출: 원가 이력 없는 세트를 구성품 원가 합으로 추정한 행
+  set_estimated_profit: number
 }
 
 export interface TeamSalesRow extends SalesMetrics {
@@ -81,6 +83,8 @@ const NUMERIC_KEYS = [
   'costed_supply_amount',
   'provisional_supply_amount',
   'provisional_profit',
+  'set_estimated_supply_amount',
+  'set_estimated_profit',
 ] as const
 
 // PostgREST 응답의 numeric 컬럼을 number로 정규화

@@ -65,6 +65,8 @@ interface Totals {
   qty: number
   provSupply: number // 가결산 매출 (원가 미확정 월)
   provProfit: number // 가결산 매출이익
+  setSupply: number // 세트추정 매출 (구성품 원가 합으로 추정)
+  setProfit: number
 }
 
 interface TeamSummary extends Totals {
@@ -111,8 +113,10 @@ function sum(rows: SalesMetrics[]): Totals {
       qty: acc.qty + r.total_qty,
       provSupply: acc.provSupply + r.provisional_supply_amount,
       provProfit: acc.provProfit + r.provisional_profit,
+      setSupply: acc.setSupply + r.set_estimated_supply_amount,
+      setProfit: acc.setProfit + r.set_estimated_profit,
     }),
-    { supply: 0, costedSupply: 0, cost: 0, profit: 0, qty: 0, provSupply: 0, provProfit: 0 },
+    { supply: 0, costedSupply: 0, cost: 0, profit: 0, qty: 0, provSupply: 0, provProfit: 0, setSupply: 0, setProfit: 0 },
   )
 }
 
@@ -123,6 +127,13 @@ function ProvBadge({ t, costMonth }: { t: Totals; costMonth?: string | null }) {
   const tip = `원가 미확정 월 매출 ${fmtWon(t.provSupply)}(원가 반영 매출의 ${share}%)은 품목별 최근 확정 원가로 계산한 가결산입니다`
     + (costMonth ? ` · 적용 원가 ${monthLabel(costMonth)}` : '')
   return <span className="badge-prov" title={tip}>가결산</span>
+}
+
+/** 원가 이력 없는 세트를 기준표/세트구성.csv 구성품 원가 합으로 추정한 매출이 섞이면 '세트추정' 배지 */
+function SetBadge({ t }: { t: Totals }) {
+  if (!t.setSupply) return null
+  const tip = `세트 매출 ${fmtWon(t.setSupply)}은 원가 이력이 없어 구성품 원가 합으로 추정했습니다 (포장재 원가 제외)`
+  return <span className="badge-prov badge-set" title={tip}>세트추정</span>
 }
 
 function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
@@ -274,7 +285,12 @@ export default function App() {
     { label: '총 원가', value: fmtWon(kpi.cost), sub: `원가 반영 매출 ${fmtCompact(kpi.costedSupply)}원${provNote}`, icon: Coins, tone: 'violet', prov: true },
     {
       label: '총 매출이익', value: fmtWon(kpi.profit), icon: TrendingUp, tone: 'green', prov: true,
-      sub: kpi.provSupply ? `확정 ${fmtCompact(kpi.profit - kpi.provProfit)}원 · 가결산 ${fmtCompact(kpi.provProfit)}원` : fmtCompact(kpi.profit) + '원',
+      // 확정 = 전체 − 가결산 − 세트추정 (원가 0 비대상은 확정에 포함)
+      sub: kpi.provSupply || kpi.setSupply
+        ? [`확정 ${fmtCompact(kpi.profit - kpi.provProfit - kpi.setProfit)}원`,
+           kpi.provSupply && `가결산 ${fmtCompact(kpi.provProfit)}원`,
+           kpi.setSupply && `세트추정 ${fmtCompact(kpi.setProfit)}원`].filter(Boolean).join(' · ')
+        : fmtCompact(kpi.profit) + '원',
     },
     { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.costedSupply)), sub: `매출이익 ÷ 원가 반영 매출${provNote}`, icon: Percent, tone: 'amber', prov: true },
     { label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', icon: Boxes, tone: 'cyan', prov: false },
@@ -351,6 +367,15 @@ export default function App() {
           </span>
         </div>
       )}
+      {kpi.setSupply !== 0 && (
+        <div className="prov-notice set-notice" role="note">
+          <span className="badge-prov badge-set">세트추정</span>
+          <span>
+            원가 이력이 없는 선물세트 매출 <b>{fmtCompact(kpi.setSupply)}원</b>은 구성품 원가를 합해 추정한 원가로 계산했습니다(포장재 제외).
+            운송비·식음료 기타·a/s·적립금차감은 원가 0으로 매출·이익에 포함됩니다.
+          </span>
+        </div>
+      )}
 
       {loading && !data ? (
         <div className="loading">
@@ -366,6 +391,7 @@ export default function App() {
                   <span className="muted">
                     {label}
                     {prov && <ProvBadge t={kpi} />}
+                    {prov && <SetBadge t={kpi} />}
                   </span>
                   <span className="kpi-icon">
                     <Icon size={17} />
@@ -555,9 +581,10 @@ export default function App() {
 const money = <T extends Totals>(key: keyof Totals) => (r: T) => fmtWon(r[key])
 // 매출이익 칸: 가결산이 섞인 행은 배지 + 옅은 주황 배경
 const profitCell = <T extends Totals & { costMonth?: string | null }>(r: T) => (
-  <span className={r.provSupply ? 'prov' : ''}>
+  <span className={r.provSupply || r.setSupply ? 'prov' : ''}>
     {fmtWon(r.profit)}
     <ProvBadge t={r} costMonth={r.costMonth} />
+    <SetBadge t={r} />
   </span>
 )
 const pct = <T extends { rate: number | null }>(r: T) => (
