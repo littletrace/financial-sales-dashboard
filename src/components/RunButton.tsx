@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Play } from 'lucide-react'
 
 // api/run.ts 의 REPORTS 와 같은 순서
-const REPORTS = ['전부', '거래명세서품목조회', '수출매출품목조회', '재고금액상세조회']
+const REPORTS = ['전부', '거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)']
 interface Run { status: string; conclusion: string | null; createdAt: string }
 
 /** 영림원 다운로드 → DB 적재 실행 버튼. 실행 성공으로 끝나면 onDone(데이터 새로고침) 호출 */
@@ -66,7 +66,7 @@ export function RunButton({ onDone }: { onDone: () => void }) {
       <dialog ref={dialog} className="run-dialog" onClose={() => setMsg('')}>
         <form onSubmit={submit}>
           <h3>영림원 다운로드 → DB 적재</h3>
-          <label>조회 월 <span className="muted small">(비우면 매출 전월+당월, 재고 당월)</span>
+          <label>조회 월 <span className="muted small">(비우면 매출 전월+당월, 재고 당월, 손익 1월~당월)</span>
             <input type="month" name="month" />
           </label>
           <label>화면

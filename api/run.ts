@@ -4,7 +4,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 
 const REPO = 'littletrace/finance-db-loader'
 const WORKFLOW = 'erp.yml'
-export const REPORTS = ['전부', '거래명세서품목조회', '수출매출품목조회', '재고금액상세조회']
+export const REPORTS = ['전부', '거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)']
 
 const gh = (path: string, init?: RequestInit) =>
   fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/${path}`, {
