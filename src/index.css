@@ -202,6 +202,59 @@ tbody tr:hover { background: #f5f9ff; }
   background: var(--field); color: var(--text);
 }
 .team-chips { gap: 5px; }
+/* 조회 탭: 프리셋 묶음 + 조건/구성 패널 */
+.presets { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-start; }
+.pgroup { display: flex; flex-direction: column; gap: 6px; }
+.pgroup-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; color: var(--muted); }
+.chip.preset { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; border-radius: 12px; text-align: left; }
+.chip .ct { font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.chip .cs { font-size: 0.72rem; opacity: 0.75; }
+.chip.group { border-style: dashed; }
+.chip.group.active { border-style: solid; }
+.chip.small svg { vertical-align: -2px; }
+.tag-new {
+  padding: 1px 6px; border-radius: 6px; font-size: 0.66rem; font-weight: 700; line-height: 1.5;
+  background: var(--accent-soft); color: #1b64da; border: 1px solid #c9e0ff;
+}
+.chip.active .tag-new { background: rgba(255, 255, 255, 0.22); color: #fff; border-color: transparent; }
+.preset-note {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 14px; border-radius: 12px;
+  background: var(--head); border: 1px solid var(--line); font-size: 0.84rem;
+}
+.preset-note .modified { color: #b45309; font-weight: 600; }
+.linkbtn { border: 0; background: none; color: #1b64da; cursor: pointer; padding: 0; text-decoration: underline; font-size: 0.8rem; }
+.pivot-panel { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.panel-title {
+  padding: 8px 14px; background: var(--head); border-bottom: 1px solid var(--line);
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; color: var(--muted);
+}
+.frow { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: center; padding: 9px 14px; }
+.frow + .frow { border-top: 1px solid var(--line); }
+.frow > .lbl { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
+.frow .ctl { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; min-width: 0; }
+.frow select {
+  height: 32px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); color: var(--text);
+}
+.row-level { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 560px) { .frow { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 10px; background: var(--field); border: 1px solid var(--line); }
+.seg button { border: 0; background: none; padding: 5px 11px; border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 0.82rem; }
+.seg button:hover { color: var(--text); }
+.seg button.active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+.searchwrap { position: relative; display: inline-block; }
+.suggest {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 10; width: 320px; max-width: 86vw;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.sug-head, .sug-foot { padding: 6px 8px; font-size: 0.74rem; color: var(--muted); }
+.sug-foot { border-top: 1px solid var(--line); margin-top: 2px; }
+.suggest button {
+  display: flex; gap: 8px; align-items: center; text-align: left; border: 0; background: none; padding: 7px 8px;
+  border-radius: 8px; cursor: pointer; font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.suggest button:hover, .suggest button:focus-visible { background: var(--accent-soft); color: #1b64da; }
+.suggest .pin { font-size: 0.68rem; font-weight: 700; color: #1b64da; flex: none; }
 .pivot-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
 .pivot-actions { display: inline-flex; gap: 6px; }
 .btn.small { padding: 5px 10px; font-size: 0.8rem; }

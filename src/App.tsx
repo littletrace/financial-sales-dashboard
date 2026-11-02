@@ -174,6 +174,10 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('team')
   const [withSga, setWithSga] = useState(false) // 판관비 포함 보기: 판관비·영업이익 카드 + 영업이익 선
   const pivotMonths = useMemo(() => [...new Set((data?.team ?? []).map((r) => r.sales_month))].sort(), [data])
+  const pivotItems = useMemo(
+    () => [...new Set((data?.item ?? []).map((r) => r.item_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')),
+    [data],
+  )
   const pivotTeams = useMemo(
     () => [...new Set((data?.team ?? []).map((r) => r.sales_team).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')),
     [data],
@@ -619,7 +623,7 @@ export default function App() {
                 <Users size={15} /> 주요 거래처 TOP 30
               </button>
               <button className={tab === 'pivot' ? 'active' : ''} onClick={() => setTab('pivot')}>
-                <TableIcon size={15} /> 조회 (시트 피벗)
+                <TableIcon size={15} /> 조회
               </button>
             </nav>
             <div className="tab-body" key={tab}>
@@ -636,7 +640,7 @@ export default function App() {
                   note={team === ALL ? undefined : '품목 집계에는 부서 필터가 적용되지 않습니다'}
                 />
               )}
-              {tab === 'pivot' && <PivotView months={pivotMonths} teams={pivotTeams} provMonths={provMonths} />}
+              {tab === 'pivot' && <PivotView months={pivotMonths} teams={pivotTeams} provMonths={provMonths} itemNames={pivotItems} />}
               {tab === 'customer' && (
                 <DataTable
                   rows={topCustomers}

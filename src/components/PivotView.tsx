@@ -1,174 +1,99 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, RefreshCw, Search } from 'lucide-react'
+import { ChevronDown, ChevronRight, RefreshCw, Search, X } from 'lucide-react'
 import { getPivot, type PivotRow } from '../lib/supabase'
 import { fmtNumber, monthLabel } from '../lib/format'
+import {
+  COST_MEASURES, EX_CATEGORIES, FIELD_LABEL, MEASURE_LABEL, PRESETS, RETAIL4,
+  allParents, buildTree, flatten, presetCfg, toParams, value,
+  type Cfg, type Field, type Measure, type Node,
+} from '../lib/pivot'
 
-type Field = 'sales_team' | 'channel_type' | 'customer_name' | 'item_category' | 'item_type' | 'item_name' | 'region'
-type Measure = 'supply' | 'qty' | 'cost' | 'profit' | 'costed'
+const CUSTOM = 'custom'
+const GROUPS = [...new Set(PRESETS.map((p) => p.group))]
+const pathLabel = (rows: Field[]) => rows.map((f) => FIELD_LABEL[f]).join(' > ')
+const fmt = (v: number | null, m: Measure) => (v == null ? '' : m === 'rate' ? `${(v * 100).toFixed(1)}%` : fmtNumber(v))
+const sameSet = (a: string[], b: string[]) => a.length === b.length && b.every((x) => a.includes(x))
 
-const FIELD_LABEL: Record<Field, string> = {
-  sales_team: '부서',
-  channel_type: '영업점구분',
-  customer_name: '거래처',
-  item_category: '품목자산분류',
-  item_type: '품목소분류',
-  item_name: '품명',
-  region: '권역',
-}
-const MEASURE_LABEL: Record<Measure, string> = {
-  supply: '판매금액',
-  qty: '수량',
-  cost: '매출원가',
-  profit: '매출이익',
-  costed: '원가 반영 매출',
-}
-const MEASURE_INDEX: Record<Measure, number> = { qty: 2, supply: 3, cost: 4, profit: 5, costed: 6 }
-
-interface Preset {
-  id: string
-  label: string
-  rows: Field[]
-  measures: Measure[]
-  exclude?: string[]
-  channel?: string
-  teams?: string[]
-  items?: string[]
-  sources?: string[]
+function Seg<T extends string>({ value: v, options, onChange }: { value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <div className="seg">
+      {options.map(([k, label]) => (
+        <button key={k} type="button" className={k === v ? 'active' : ''} onClick={() => onChange(k)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
-// 구글시트 '26년 매출자료 조회' 조회 탭 피벗 정의를 그대로 옮김 (월·품명 같은 임시 선택 필터는 화면에서 고름)
-const EXCL = ['운송비', '소모품', '서비스']
-const RETAIL4 = ['매장영업팀', '영업1팀', '영업기획팀', '화장품사업팀']
-const PRESETS: Preset[] = [
-  { id: 'q3', label: '조회3 부서매출별', rows: ['sales_team'], measures: ['supply'], exclude: ['운송비', '소모품', 'a/s부품', '원자재', '서비스'] },
-  { id: 'q4', label: '조회4 영업점별', rows: ['channel_type', 'customer_name', 'item_category'], measures: ['supply', 'cost'], exclude: [...EXCL, '(빈값)'], channel: '영업점', sources: ['국내'] },
-  { id: 'q5', label: '조회5 부서연결 영업점별', rows: ['sales_team', 'item_category', 'customer_name'], measures: ['cost', 'supply'], exclude: EXCL, channel: '영업점', sources: ['국내'] },
-  { id: 'q6', label: '조회6 유통사업본부', rows: ['sales_team', 'customer_name', 'item_name'], measures: ['supply', 'qty', 'cost', 'profit'], exclude: [...EXCL, '(빈값)'], channel: '영업점', teams: RETAIL4, sources: ['국내'] },
-  { id: 'q7', label: '조회7 품목·거래처별', rows: ['sales_team', 'item_category', 'item_name', 'customer_name'], measures: ['supply', 'qty'], exclude: EXCL, teams: RETAIL4, sources: ['국내'] },
-  { id: 'dairy', label: '유제품', rows: ['item_name', 'customer_name'], measures: ['qty', 'supply'], items: ['와일드오차드 스트링치즈150g', '와일드오차드 유기농우유 900ml'] },
-  { id: 'export', label: '수출 (해외영업팀)', rows: ['item_name'], measures: ['qty', 'supply'], teams: ['해외영업팀'], sources: ['수출'] },
-]
-
-interface Node {
-  key: string
-  label: string
-  depth: number
-  values: Map<string, number>
-  total: number
-  children: Node[]
-}
-
-function newNode(key: string, label: string, depth: number): Node {
-  return { key, label, depth, values: new Map(), total: 0, children: [] }
-}
-
-function add(n: Node, month: string, v: number) {
-  n.values.set(month, (n.values.get(month) ?? 0) + v)
-  n.total += v
-}
-
-// 행키 경로로 트리를 만들고 단계마다 소계를 누적
-function buildTree(rows: PivotRow[], measure: Measure, query: string): Node {
-  const root = newNode('', '총계', -1)
-  const index = new Map<string, Node>()
-  const q = query.trim().toLowerCase()
-  const mi = MEASURE_INDEX[measure]
-  for (const r of rows) {
-    const keys = r[0]
-    if (q && !keys.some((k) => k.toLowerCase().includes(q))) continue
-    const month = r[1]
-    const v = Number(r[mi] ?? 0)
-    let parent = root
-    let path = ''
-    keys.forEach((k, depth) => {
-      path += '\u0001' + k
-      let n = index.get(path)
-      if (!n) {
-        n = newNode(path, k, depth)
-        index.set(path, n)
-        parent.children.push(n)
-      }
-      add(n, month, v)
-      parent = n
-    })
-    add(root, month, v)
-  }
-  const sort = (n: Node) => {
-    n.children.sort((a, b) => b.total - a.total)
-    n.children.forEach(sort)
-  }
-  sort(root)
-  return root
-}
-
-function flatten(n: Node, expanded: Set<string>, out: Node[] = []): Node[] {
-  for (const c of n.children) {
-    out.push(c)
-    if (expanded.has(c.key)) flatten(c, expanded, out)
-  }
-  return out
-}
-
-function allParents(n: Node, out: string[] = []): string[] {
-  for (const c of n.children) {
-    if (c.children.length) {
-      out.push(c.key)
-      allParents(c, out)
-    }
-  }
-  return out
-}
-
-export function PivotView({ months, teams, provMonths }: { months: string[]; teams: string[]; provMonths: Set<string> }) {
-  const [presetId, setPresetId] = useState(PRESETS[0].id)
-  const preset = PRESETS.find((p) => p.id === presetId)!
+export function PivotView({ months, teams, provMonths, itemNames }: { months: string[]; teams: string[]; provMonths: Set<string>; itemNames: string[] }) {
+  const [presetId, setPresetId] = useState(CUSTOM)
+  const [cfg, setCfgState] = useState<Cfg>(() => presetCfg(undefined))
+  const [modified, setModified] = useState(false)
   const [from, setFrom] = useState(months[0] ?? '')
   const [to, setTo] = useState(months[months.length - 1] ?? '')
-  const [measure, setMeasure] = useState<Measure>(preset.measures[0])
-  const [teamSel, setTeamSel] = useState<string[]>(preset.teams ?? [])
   const [query, setQuery] = useState('')
+  const [suggestOpen, setSuggestOpen] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [rows, setRows] = useState<PivotRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const preset = PRESETS.find((p) => p.id === presetId)
 
-  const choose = (p: Preset) => {
-    setPresetId(p.id)
-    setMeasure(p.measures[0])
-    setTeamSel(p.teams ?? [])
+  const choose = (id: string) => {
+    setPresetId(id)
+    setCfgState(presetCfg(PRESETS.find((p) => p.id === id)))
+    setModified(false)
     setExpanded(new Set())
     setQuery('')
+  }
+  // 프리셋은 초기값만 채움: 이후 조건을 바꾸면 '바꿨음' 표시
+  const update = (patch: Partial<Cfg>) => {
+    setCfgState((c) => ({ ...c, ...patch }))
+    if (presetId !== CUSTOM) setModified(true)
+    setExpanded(new Set())
   }
 
   useEffect(() => {
     let alive = true
     setLoading(true)
     setError(null)
-    getPivot({
-      rows: preset.rows,
-      from: from || null,
-      to: to || null,
-      exclude: preset.exclude,
-      channel: preset.channel,
-      teams: teamSel.length ? teamSel : null,
-      items: preset.items,
-      sources: preset.sources,
-    })
+    getPivot(toParams(cfg, from, to))
       .then((r) => alive && setRows(r))
       .catch((e: Error) => alive && setError(e.message))
       .finally(() => alive && setLoading(false))
     return () => {
       alive = false
     }
-  }, [preset, from, to, teamSel])
+  }, [cfg, from, to])
 
-  const tree = useMemo(() => buildTree(rows, measure, query), [rows, measure, query])
+  const tree = useMemo(() => buildTree(rows, query), [rows, query])
   const visible = useMemo(() => flatten(tree, expanded), [tree, expanded])
-  const cols = months.filter((m) => (!from || m >= from) && (!to || m <= to))
-  // 원가·이익·원가반영매출만 가결산 영향을 받음 (판매금액·수량은 확정 값)
-  const costMeasure = measure === 'cost' || measure === 'profit' || measure === 'costed'
-  const provCls = (m: string) => (costMeasure && provMonths.has(m) ? 'num prov' : 'num')
-  const provTotal = costMeasure && cols.some((m) => provMonths.has(m))
+  const monthCols = months.filter((m) => (!from || m >= from) && (!to || m <= to))
+  const byMeasure = cfg.col === 'measure'
+  const cols: string[] = byMeasure ? (Object.keys(MEASURE_LABEL) as Measure[]) : monthCols
+  const provInRange = monthCols.some((m) => provMonths.has(m))
+  const retail = sameSet(cfg.teams, RETAIL4)
+  const suggestions = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return q ? itemNames.filter((n) => n.toLowerCase().includes(q) && !cfg.items.includes(n)).slice(0, 8) : []
+  }, [query, itemNames, cfg.items])
+
+  const cell = (n: Node, c: string) => {
+    const m = byMeasure ? (c as Measure) : cfg.measure
+    const v = value(byMeasure ? n.total : n.cells.get(c), m)
+    // 원가·이익·이익률만 가결산 영향을 받음 (판매금액·수량은 확정 값)
+    const prov = COST_MEASURES.has(m) && (byMeasure ? provInRange : provMonths.has(c))
+    return (
+      <td key={c} className={`num${prov ? ' prov' : ''}${v != null && v < 0 ? ' neg' : ''}`}>
+        {fmt(v, m)}
+      </td>
+    )
+  }
+  const totalCell = (n: Node, cls: string) =>
+    byMeasure ? null : (
+      <td className={`num ${cls}${COST_MEASURES.has(cfg.measure) && provInRange ? ' prov' : ''}`}>{fmt(value(n.total, cfg.measure), cfg.measure)}</td>
+    )
   const toggle = (key: string) =>
     setExpanded((s) => {
       const next = new Set(s)
@@ -176,76 +101,212 @@ export function PivotView({ months, teams, provMonths }: { months: string[]; tea
       else next.add(key)
       return next
     })
-  const toggleTeam = (t: string) => setTeamSel((s) => (s.includes(t) ? s.filter((x) => x !== t) : [...s, t]))
-
-  const fixed = [
-    preset.sources && `출처: ${preset.sources.join(', ')}`,
-    preset.channel && `영업점구분: ${preset.channel}`,
-    preset.exclude && `자산분류 제외: ${preset.exclude.join(', ')}`,
-    preset.items && `품명: ${preset.items.join(', ')}`,
-  ].filter(Boolean)
+  const toggleTeam = (t: string) =>
+    update({ teams: retail ? [t] : cfg.teams.includes(t) ? cfg.teams.filter((x) => x !== t) : [...cfg.teams, t] })
+  const pin = (name: string) => {
+    update({ items: [...cfg.items, name] })
+    setQuery('')
+    setSuggestOpen(false)
+  }
+  const setRowAt = (i: number, f: string) =>
+    update({ rows: f ? [...new Set([...cfg.rows.slice(0, i), f as Field, ...cfg.rows.slice(i + 1)])] : cfg.rows.slice(0, i) })
+  const levels = Math.min(cfg.rows.length + 1, 4)
 
   return (
     <div className="pivot">
-      <div className="chips">
-        {PRESETS.map((p) => (
-          <button key={p.id} className={`chip ${p.id === presetId ? 'active' : ''}`} onClick={() => choose(p)}>
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="pivot-controls">
-        <label className="select">
-          <span className="muted small">기간</span>
-          <select value={from} onChange={(e) => setFrom(e.target.value)}>
-            {months.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-          <span className="muted">~</span>
-          <select value={to} onChange={(e) => setTo(e.target.value)}>
-            {months.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </label>
-        <div className="chips">
-          {(Object.keys(MEASURE_LABEL) as Measure[]).map((m) => (
-            <button key={m} className={`chip small ${m === measure ? 'active' : ''}`} onClick={() => setMeasure(m)}>
-              {MEASURE_LABEL[m]}
+      <div className="presets">
+        <div className="pgroup">
+          <span className="pgroup-label">기본</span>
+          <div className="chips">
+            <button type="button" className={`chip preset ${presetId === CUSTOM ? 'active' : ''}`} onClick={() => choose(CUSTOM)}>
+              <span className="ct">직접 구성</span>
+              <span className="cs">행·열을 직접 고름</span>
             </button>
-          ))}
+          </div>
         </div>
-        <label className="search">
-          <Search size={15} />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="거래처·품명 등 검색" />
-        </label>
+        {GROUPS.map((g) => (
+          <div key={g} className="pgroup">
+            <span className="pgroup-label">{g}</span>
+            <div className="chips">
+              {PRESETS.filter((p) => p.group === g).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`chip preset ${p.id === presetId ? 'active' : ''}`}
+                  title={p.old ? `구 시트 ${p.old}` : '시트에 없던 조합'}
+                  onClick={() => choose(p.id)}
+                >
+                  <span className="ct">
+                    {p.name}
+                    {!p.old && <span className="tag-new">신규</span>}
+                  </span>
+                  <span className="cs">{pathLabel(p.rows)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
-      <div className="chips team-chips">
-        <span className="muted small">부서</span>
-        <button className={`chip small ${teamSel.length === 0 ? 'active' : ''}`} onClick={() => setTeamSel([])}>
-          전체
-        </button>
-        {teams.map((t) => (
-          <button key={t} className={`chip small ${teamSel.includes(t) ? 'active' : ''}`} onClick={() => toggleTeam(t)}>
-            {t}
-          </button>
-        ))}
+      <div className="preset-note">
+        {preset ? (
+          <>
+            <b>{preset.name}</b>
+            <span className="muted">
+              {preset.old ? `구 시트 ${preset.old}와 같은 조건으로 채웠습니다.` : '시트에는 없던 조합입니다.'}
+            </span>
+            {modified && (
+              <>
+                <span className="modified">· 조건을 바꿨습니다</span>
+                <button type="button" className="linkbtn" onClick={() => choose(preset.id)}>프리셋 값으로 되돌리기</button>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <b>직접 구성</b>
+            <span className="muted">기본값은 KPI와 같은 기준(전체 포함)입니다. 프리셋을 누르면 아래 조건이 그 값으로 채워지고, 이후엔 자유롭게 바꿀 수 있습니다.</span>
+          </>
+        )}
+      </div>
+
+      <div className="pivot-panel">
+        <div className="panel-title">조건</div>
+        <div className="frow">
+          <span className="lbl">기간</span>
+          <div className="ctl">
+            <select value={from} onChange={(e) => { setFrom(e.target.value); if (to < e.target.value) setTo(e.target.value) }} aria-label="시작월">
+              {months.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <span className="muted">~</span>
+            <select value={to} onChange={(e) => { setTo(e.target.value); if (from > e.target.value) setFrom(e.target.value) }} aria-label="종료월">
+              {months.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="frow">
+          <span className="lbl">출처</span>
+          <div className="ctl">
+            <Seg value={cfg.src} options={[['all', '전체'], ['국내', '국내'], ['수출', '수출']]} onChange={(src) => update({ src })} />
+          </div>
+        </div>
+        <div className="frow">
+          <span className="lbl">영업점구분</span>
+          <div className="ctl">
+            <Seg value={cfg.ch} options={[['all', '전체'], ['영업점', '영업점']]} onChange={(ch) => update({ ch })} />
+          </div>
+        </div>
+        <div className="frow">
+          <span className="lbl">부서</span>
+          <div className="ctl chips">
+            <button type="button" className={`chip small ${cfg.teams.length ? '' : 'active'}`} onClick={() => update({ teams: [] })}>전체</button>
+            <button type="button" className={`chip small group ${retail ? 'active' : ''}`} title={RETAIL4.join(', ')} onClick={() => update({ teams: [...RETAIL4] })}>
+              유통사업본부 (4개 팀)
+            </button>
+            {teams.map((t) => (
+              <button key={t} type="button" className={`chip small ${!retail && cfg.teams.includes(t) ? 'active' : ''}`} onClick={() => toggleTeam(t)}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="frow">
+          <span className="lbl">비상품 제외</span>
+          <div className="ctl">
+            <Seg value={cfg.ex} options={[['none', '전체 포함'], ['base', '비상품 제외'], ['ext', '+ 원자재·a/s 제외']]} onChange={(ex) => update({ ex })} />
+            <span className="muted small">{cfg.ex === 'none' ? '모든 자산분류 포함' : `제외: ${EX_CATEGORIES[cfg.ex].join(' · ')}`}</span>
+          </div>
+        </div>
+        <div className="frow">
+          <span className="lbl">품목</span>
+          <div className="ctl chips">
+            {cfg.items.length ? (
+              cfg.items.map((n) => (
+                <button key={n} type="button" className="chip small active" onClick={() => update({ items: cfg.items.filter((x) => x !== n) })} title="고정 해제">
+                  {n} <X size={12} />
+                </button>
+              ))
+            ) : (
+              <span className="muted small">고정 없음 (전체 품목) · 표 위 검색창에서 품명 후보를 고르면 여기에 고정됩니다</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="pivot-panel">
+        <div className="panel-title">구성</div>
+        <div className="frow">
+          <span className="lbl">행 기준</span>
+          <div className="ctl">
+            {Array.from({ length: levels }, (_, i) => {
+              const used = cfg.rows.slice(0, i)
+              const opts = (Object.keys(FIELD_LABEL) as Field[]).filter((f) => !used.includes(f))
+              return (
+                <span key={i} className="row-level">
+                  {i > 0 && <span className="muted">›</span>}
+                  <select value={cfg.rows[i] ?? ''} onChange={(e) => setRowAt(i, e.target.value)} aria-label={`${i + 1}단계 행`}>
+                    {i > 0 && <option value="">{i === cfg.rows.length ? '+ 단계 추가' : '없음'}</option>}
+                    {opts.map((f) => <option key={f} value={f}>{FIELD_LABEL[f]}</option>)}
+                  </select>
+                </span>
+              )
+            })}
+          </div>
+        </div>
+        <div className="frow">
+          <span className="lbl">열</span>
+          <div className="ctl">
+            <Seg value={cfg.col} options={[['month', '월별'], ['measure', '지표별 (기간 합계)']]} onChange={(col) => update({ col })} />
+          </div>
+        </div>
+        <div className="frow">
+          <span className="lbl">지표</span>
+          <div className="ctl">
+            {byMeasure ? (
+              <span className="muted small">지표별 모드에서는 모든 지표가 열로 나옵니다</span>
+            ) : (
+              <Seg value={cfg.measure} options={Object.entries(MEASURE_LABEL) as [Measure, string][]} onChange={(measure) => update({ measure })} />
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="pivot-meta">
         <span className="muted small">
-          행: {preset.rows.map((f) => FIELD_LABEL[f]).join(' > ')}
-          {fixed.length > 0 && ` · ${fixed.join(' · ')}`}
+          행: {pathLabel(cfg.rows)} · 열: {byMeasure ? '지표별' : `월별 · ${MEASURE_LABEL[cfg.measure]}`}
         </span>
-        {preset.rows.length > 1 && (
-          <span className="pivot-actions">
-            <button className="btn ghost small" onClick={() => setExpanded(new Set(allParents(tree)))}>모두 펼치기</button>
-            <button className="btn ghost small" onClick={() => setExpanded(new Set())}>모두 접기</button>
+        <span className="pivot-actions">
+          <span className="searchwrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setSuggestOpen(false)}>
+            <label className="search">
+              <Search size={15} />
+              <input
+                value={query}
+                onChange={(e) => { setQuery(e.target.value); setSuggestOpen(true) }}
+                onFocus={() => setSuggestOpen(true)}
+                onKeyDown={(e) => (e.key === 'Escape' || e.key === 'Enter') && setSuggestOpen(false)}
+                placeholder="거래처·품명 검색"
+                autoComplete="off"
+              />
+            </label>
+            {suggestOpen && suggestions.length > 0 && (
+              <div className="suggest">
+                <div className="sug-head">품명 후보 · 고르면 품목 고정 (합계가 이 품목만으로 바뀜)</div>
+                {suggestions.map((n) => (
+                  <button key={n} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => pin(n)}>
+                    <span className="pin">고정</span>{n}
+                  </button>
+                ))}
+                <div className="sug-foot">고르지 않으면 표 안에서 “{query.trim()}” 글자를 찾기만 합니다</div>
+              </div>
+            )}
           </span>
-        )}
+          {cfg.rows.length > 1 && (
+            <>
+              <button className="btn ghost small" onClick={() => setExpanded(new Set(allParents(tree)))}>모두 펼치기</button>
+              <button className="btn ghost small" onClick={() => setExpanded(new Set())}>모두 접기</button>
+            </>
+          )}
+        </span>
       </div>
 
       {error && <div className="alert glass">조회 실패: {error}</div>}
@@ -254,21 +315,21 @@ export function PivotView({ months, teams, provMonths }: { months: string[]; tea
         <table className="pivot-table">
           <thead>
             <tr>
-              <th>{preset.rows.map((f) => FIELD_LABEL[f]).join(' / ')}</th>
-              {cols.map((m) => (
-                <th key={m} className="num">
-                  {monthLabel(m)}
-                  {provMonths.has(m) && <span className="badge-prov" title="원가 미확정: 품목별 최근 확정 원가로 계산">가결산</span>}
+              <th>{cfg.rows.map((f) => FIELD_LABEL[f]).join(' / ')}</th>
+              {cols.map((c) => (
+                <th key={c} className="num">
+                  {byMeasure ? MEASURE_LABEL[c as Measure] : monthLabel(c)}
+                  {!byMeasure && provMonths.has(c) && <span className="badge-prov" title="원가 미확정: 품목별 최근 확정 원가로 계산">가결산</span>}
                 </th>
               ))}
-              <th className="num">합계</th>
+              {!byMeasure && <th className="num">합계</th>}
             </tr>
           </thead>
           <tbody>
             {visible.length === 0 && (
               <tr>
                 <td className="empty" colSpan={cols.length + 2}>
-                  {loading ? <RefreshCw size={18} className="spin" /> : '데이터가 없습니다'}
+                  {loading ? <RefreshCw size={18} className="spin" /> : '조건에 맞는 데이터가 없습니다'}
                 </td>
               </tr>
             )}
@@ -284,10 +345,8 @@ export function PivotView({ months, teams, provMonths }: { months: string[]; tea
                     n.label
                   )}
                 </td>
-                {cols.map((m) => (
-                  <td key={m} className={provCls(m)}>{n.values.has(m) ? fmtNumber(n.values.get(m)!) : ''}</td>
-                ))}
-                <td className={`num strong ${provTotal ? 'prov' : ''}`}>{fmtNumber(n.total)}</td>
+                {cols.map((c) => cell(n, c))}
+                {totalCell(n, 'strong')}
               </tr>
             ))}
           </tbody>
@@ -295,19 +354,17 @@ export function PivotView({ months, teams, provMonths }: { months: string[]; tea
             <tfoot>
               <tr>
                 <td className="pivot-label">총계</td>
-                {cols.map((m) => (
-                  <td key={m} className={provCls(m)}>{fmtNumber(tree.values.get(m) ?? 0)}</td>
-                ))}
-                <td className="num">{fmtNumber(tree.total)}</td>
+                {cols.map((c) => cell(tree, c))}
+                {totalCell(tree, '')}
               </tr>
             </tfoot>
           )}
         </table>
       </div>
       <p className="muted small">
-        구글시트 조회 탭의 피벗 설정을 옮긴 화면입니다. 원가가 확정되지 않은 달(가결산)의 매출원가·매출이익은
-        품목별 가장 최근 확정 원가로 계산한 값입니다. 원가 이력이 없는 선물세트는 구성품 원가 합, 그 밖의 품목은 최근 구매단가로 추정하고,
-        운송비·식음료 기타·a/s·적립금차감은 원가 0으로 포함합니다. 구매 기록도 없는 품목만 원가·이익에서 빠집니다.
+        이익률 = 매출이익 ÷ 원가 반영 매출. 원가가 확정되지 않은 달(가결산)의 매출원가·매출이익은 품목별 가장 최근 확정 원가로 계산한 값입니다.
+        원가 이력이 없는 선물세트는 구성품 원가 합, 그 밖의 품목은 최근 구매단가로 추정하고, 운송비·식음료 기타·a/s·적립금차감은 원가 0으로
+        포함합니다. 구매 기록도 없는 품목만 원가·이익에서 빠집니다.
       </p>
     </div>
   )
