@@ -233,9 +233,14 @@ export default function App() {
     if (!withSga || team !== ALL) return null
     const ms = months.filter((m) => inMonth({ sales_month: m }) && sgaOf.has(m))
     if (!ms.length) return null
-    return { amount: ms.reduce((s, m) => s + sgaOf.get(m)!, 0), open: ms.filter((m) => openMonths.has(m)) }
-  }, [withSga, team, months, inMonth, sgaOf, openMonths])
-  const opProfit = sga ? kpi.profit - sga.amount : null
+    // 영업이익은 판관비가 있는 월의 매출이익만으로 계산 (판관비 미반영 월까지 넣으면 영업이익이 부풀려짐)
+    const t = sum(data?.team.filter((r) => ms.includes(r.sales_month)) ?? [])
+    return {
+      amount: ms.reduce((s, m) => s + sgaOf.get(m)!, 0), open: ms.filter((m) => openMonths.has(m)),
+      profit: t.profit, supply: t.supply, missing: months.filter((m) => inMonth({ sales_month: m }) && !sgaOf.has(m)),
+    }
+  }, [withSga, team, months, inMonth, sgaOf, openMonths, data])
+  const opProfit = sga ? sga.profit - sga.amount : null
 
   // 월별 추이는 기간 필터와 무관하게 전체 월을 보여주고, 선택 월만 강조
   const trend = useMemo(() => {
@@ -340,9 +345,11 @@ export default function App() {
           {
             label: '영업이익', value: opProfit === null ? '-' : fmtWon(opProfit), icon: TrendingUp, prov: true,
             tone: opProfit !== null && opProfit < 0 ? 'pink' : 'green',
-            sub: sga?.open.length
-              ? `결산 전 ${sga.open.map(monthLabel).join('·')} 포함 · 매출이익 − 판관비`
-              : opProfit === null ? '전체 부서에서만 표시' : `영업이익률 ${fmtPct(rate(opProfit, kpi.supply))}`,
+            sub: !sga || opProfit === null
+              ? '전체 부서에서만 표시'
+              : [sga.open.length && `결산 전 ${sga.open.map(monthLabel).join('·')} 포함`,
+                 sga.missing.length && `판관비 없는 ${sga.missing.map(monthLabel).join('·')} 제외`,
+                 `영업이익률 ${fmtPct(rate(opProfit, sga.supply))}`].filter(Boolean).join(' · '),
           },
         ]
       : [{ label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', icon: Boxes, tone: 'cyan', prov: false }]),
