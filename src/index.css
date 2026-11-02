@@ -96,6 +96,9 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
   font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; margin: 14px 0 4px;
   font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* 판관비 포함 보기(카드 6개): 금액이 잘리지 않도록 카드 너비에 맞춰 글자 크기를 줄임 (최대는 기본 크기) */
+.kpis.with-sga .kpi { container-type: inline-size; }
+.kpis.with-sga .kpi-value { font-size: min(1.45rem, 11cqi); text-overflow: clip; }
 .tone-blue { --tone: #3182f6; }
 .tone-violet { --tone: #7c3aed; }
 .tone-green { --tone: #059669; }
