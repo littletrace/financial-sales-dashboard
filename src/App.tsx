@@ -173,6 +173,7 @@ export default function App() {
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
   const [withSga, setWithSga] = useState(false) // 판관비 포함 보기: 판관비·영업이익 카드 + 영업이익 선
+  const [withOpen, setWithOpen] = useState(false) // 결산 전 월을 판관비·영업이익 합계에 넣을지 (기본 제외: 판관비가 아직 쌓이는 중)
   const pivotMonths = useMemo(() => [...new Set((data?.team ?? []).map((r) => r.sales_month))].sort(), [data])
   const pivotItems = useMemo(
     () => [...new Set((data?.item ?? []).map((r) => r.item_name).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko')),
@@ -233,9 +234,10 @@ export default function App() {
     () => new Set((data?.pl ?? []).filter((r) => r.account_name === '매출원가' && r.amount === 0).map((r) => r.pl_month)),
     [data],
   )
+  const openInView = months.filter((m) => inMonth({ sales_month: m }) && sgaOf.has(m) && openMonths.has(m))
   const sga = useMemo(() => {
     if (!withSga || team !== ALL) return null
-    const ms = months.filter((m) => inMonth({ sales_month: m }) && sgaOf.has(m))
+    const ms = months.filter((m) => inMonth({ sales_month: m }) && sgaOf.has(m) && (withOpen || !openMonths.has(m)))
     if (!ms.length) return null
     // 영업이익은 판관비가 있는 월의 매출이익만으로 계산 (판관비 미반영 월까지 넣으면 영업이익이 부풀려짐)
     const t = sum(data?.team.filter((r) => ms.includes(r.sales_month)) ?? [])
@@ -243,7 +245,7 @@ export default function App() {
       amount: ms.reduce((s, m) => s + sgaOf.get(m)!, 0), open: ms.filter((m) => openMonths.has(m)),
       profit: t.profit, supply: t.supply, missing: months.filter((m) => inMonth({ sales_month: m }) && !sgaOf.has(m)),
     }
-  }, [withSga, team, months, inMonth, sgaOf, openMonths, data])
+  }, [withSga, withOpen, team, months, inMonth, sgaOf, openMonths, data])
   const opProfit = sga ? sga.profit - sga.amount : null
 
   // 월별 추이는 기간 필터와 무관하게 전체 월을 보여주고, 선택 월만 강조
@@ -253,12 +255,14 @@ export default function App() {
       const t = sum(byMonth.get(m) ?? [])
       const prov = provMonths.has(m)
       const s = withSga && team === ALL ? sgaOf.get(m) : undefined
+      const op = s === undefined ? null : t.profit - s
+      const open = openMonths.has(m) && !withOpen // 결산 전 + 제외 보기: 점선·빈 점으로만 표시
       return {
         month: m, label: monthLabel(m) + (prov ? '*' : ''), prov, supply: t.supply, profit: t.profit, rate: rate(t.profit, t.costedSupply),
-        opProfit: s === undefined ? null : t.profit - s,
+        opProfit: op, opSolid: open ? null : op, open,
       }
     })
-  }, [data, months, inTeam, provMonths, withSga, team, sgaOf])
+  }, [data, months, inTeam, provMonths, withSga, withOpen, team, sgaOf, openMonths])
 
   const teamSummary = useMemo<TeamSummary[]>(() => {
     const rows = data?.team.filter(inMonth) ?? []
@@ -344,14 +348,17 @@ export default function App() {
       ? [
           {
             label: '판관비', value: sga ? fmtWon(sga.amount) : '-', icon: Landmark, tone: 'cyan', prov: false,
-            sub: team !== ALL ? '부서별 배분 기준 미정 (전체 부서만 표시)' : sga ? '영림원 손익계산서 기준' : '판관비 미적재',
+            sub: team !== ALL ? '부서별 배분 기준 미정 (전체 부서만 표시)'
+              : sga ? '영림원 손익계산서 기준' + (openInView.length && !withOpen ? ` · 결산 전 ${openInView.map(monthLabel).join('·')} 제외` : '')
+              : openInView.length ? `결산 전 월 · '결산 전 포함'을 누르면 표시` : '판관비 미적재',
           },
           {
             label: '영업이익', value: opProfit === null ? '-' : fmtWon(opProfit), icon: TrendingUp, prov: true,
             tone: opProfit !== null && opProfit < 0 ? 'pink' : 'green',
             sub: !sga || opProfit === null
-              ? '전체 부서에서만 표시'
-              : [sga.open.length && `결산 전 ${sga.open.map(monthLabel).join('·')} 포함`,
+              ? (team === ALL && openInView.length ? `결산 전 월 · '결산 전 포함'을 누르면 표시` : '전체 부서에서만 표시')
+              : [openInView.length && (withOpen ? `결산 전 ${openInView.map(monthLabel).join('·')} 포함 (판관비 진행 중)`
+                                                 : `결산 전 ${openInView.map(monthLabel).join('·')} 제외`),
                  sga.missing.length && `판관비 없는 ${sga.missing.map(monthLabel).join('·')} 제외`,
                  `영업이익률 ${fmtPct(rate(opProfit, sga.supply))}`].filter(Boolean).join(' · '),
           },
@@ -414,6 +421,17 @@ export default function App() {
             <Landmark size={15} />
             <span>{withSga ? '판관비 포함' : '판관비 미포함'}</span>
           </button>
+          {withSga && team === ALL && openInView.length > 0 && (
+            <button
+              className={withOpen ? 'btn' : 'btn ghost'}
+              onClick={() => setWithOpen((v) => !v)}
+              aria-pressed={withOpen}
+              title="결산 전 월(손익계산서 매출원가 0)의 판관비·영업이익을 합계에 넣을지 전환. 결산 전 판관비는 아직 쌓이는 중"
+            >
+              <CalendarDays size={15} />
+              <span>{withOpen ? '결산 전 포함' : '결산 전 제외'}</span>
+            </button>
+          )}
           <RunButton onDone={load} />
           <button className="btn ghost" onClick={() => supabase.auth.signOut()} title="로그아웃">
             <LogOut size={15} />
@@ -484,6 +502,7 @@ export default function App() {
                 <h2>월별 매출 추이</h2>
                 <span className="muted small">
                   막대: 매출액 · 선: 매출이익{withSga && team === ALL && ' · 주황 선: 영업이익(매출이익 − 판관비)'}
+                  {withSga && team === ALL && !withOpen && openInView.length > 0 && ' · 주황 점선: 결산 전 (합계 제외)'}
                   {provMonths.size > 0 && ' · * 빗금: 이익 가결산'}
                 </span>
               </div>
@@ -507,7 +526,9 @@ export default function App() {
                     cursor={{ fill: 'rgba(49,130,246,0.06)' }}
                     formatter={(v, name, item) => [
                       fmtWon(Number(v)),
-                      name === 'supply' ? '매출액' : name === 'opProfit' ? '영업이익' : item.payload.prov ? '매출이익 (가결산)' : '매출이익',
+                      name === 'supply' ? '매출액'
+                        : name === 'opProfit' ? (item.payload.open ? '영업이익 (결산 전, 합계 제외)' : '영업이익')
+                        : item.payload.prov ? '매출이익 (가결산)' : '매출이익',
                     ]}
                   />
                   <Bar dataKey="supply" radius={[6, 6, 0, 0]} maxBarSize={44}>
@@ -537,7 +558,16 @@ export default function App() {
                     )}
                   />
                   {withSga && team === ALL && (
-                    <Line type="monotone" dataKey="opProfit" stroke="#f97316" strokeWidth={2.5} dot={{ r: 3 }} />
+                    <>
+                      {/* 점선 = 전체 월(툴팁 담당), 실선 = 합계에 들어가는 월만 덮어 그림 -> 결산 전 구간만 점선으로 보임 */}
+                      <Line
+                        type="monotone" dataKey="opProfit" stroke="#f97316" strokeWidth={2.5} strokeDasharray="6 4" isAnimationActive={false}
+                        dot={(p: { cx?: number; cy?: number; index?: number }) => trend[p.index ?? 0]?.open
+                          ? <circle key={p.index} cx={p.cx} cy={p.cy} r={4} fill="#fff" stroke="#f97316" strokeWidth={2} />
+                          : <g key={p.index} />}
+                      />
+                      <Line type="monotone" dataKey="opSolid" stroke="#f97316" strokeWidth={2.5} dot={{ r: 3 }} tooltipType="none" isAnimationActive={false} />
+                    </>
                   )}
                 </ComposedChart>
               </ResponsiveContainer>
