@@ -45,7 +45,7 @@ export function RunButton({ onDone }: { onDone: () => void }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        password: f.get('password'), month: f.get('month'), reports: picked, load: f.get('load') === 'on',
+        password: f.get('password'), month: f.get('month'), reports: picked, load: true,
       }),
     }).catch(() => null)
     setBusy(false)
@@ -90,7 +90,6 @@ export function RunButton({ onDone }: { onDone: () => void }) {
               </label>
             ))}
           </fieldset>
-          <label className="check"><input type="checkbox" name="load" defaultChecked /> 받은 뒤 DB 적재</label>
           <label>비밀번호
             <input type="password" name="password" required autoComplete="current-password" autoFocus />
           </label>
