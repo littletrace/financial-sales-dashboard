@@ -284,7 +284,7 @@ export default function App() {
         }
       })
       .sort((a, b) => b.supply - a.supply)
-      .slice(0, 30)
+      .slice(0, 50)
   }, [data, inMonth])
 
   const topCustomers = useMemo<CustomerSummary[]>(() => {
@@ -608,7 +608,7 @@ export default function App() {
                 <Building2 size={15} /> 부서별 실적
               </button>
               <button className={tab === 'item' ? 'active' : ''} onClick={() => setTab('item')}>
-                <Package size={15} /> 베스트 품목 TOP 30
+                <Package size={15} /> 베스트 품목 TOP 50
               </button>
               <button className={tab === 'customer' ? 'active' : ''} onClick={() => setTab('customer')}>
                 <Users size={15} /> 주요 거래처 TOP 30
@@ -625,7 +625,7 @@ export default function App() {
                 <DataTable
                   rows={topItems}
                   columns={itemColumns}
-                  searchKeys={['item_name', 'item_code', 'item_type']}
+                  searchKeys={['item_name', 'item_type']}
                   defaultSort="supply"
                   rank
                   note={team === ALL ? undefined : '품목 집계에는 부서 필터가 적용되지 않습니다'}
@@ -679,7 +679,6 @@ function teamColumns(selected: string): Column<TeamSummary>[] {
 
 const itemColumns: Column<ItemSummary>[] = [
   { key: 'item_name', label: '품목명' },
-  { key: 'item_code', label: '품목코드', render: (r) => r.item_code || <span className="dim">-</span> },
   { key: 'item_type', label: '분류' },
   { key: 'supply', label: '매출액', align: 'right', render: money('supply') },
   { key: 'profit', label: '매출이익', align: 'right', render: profitCell },
