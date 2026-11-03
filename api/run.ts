@@ -4,7 +4,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 
 const REPO = 'littletrace/finance-db-loader'
 const WORKFLOW = 'erp.yml'
-export const REPORTS = ['전부', '거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)']
+export const REPORTS = ['거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)']
 
 const gh = (path: string, init?: RequestInit) =>
   fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${WORKFLOW}/${path}`, {
@@ -40,11 +40,15 @@ export async function POST(request: Request) {
   }
   const month = body.month || ''
   if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return json({ error: '월은 YYYY-MM 형식' }, 400)
-  if (!REPORTS.includes(body.report)) return json({ error: '알 수 없는 화면' }, 400)
+  // 화면은 여러 개 선택 → 워크플로에는 쉼표로 이어 보냄 (전부 고르면 '전부')
+  const reports = REPORTS.filter((n) => Array.isArray(body.reports) && body.reports.includes(n))
+  if (!Array.isArray(body.reports) || !reports.length || reports.length !== new Set(body.reports).size)
+    return json({ error: '화면을 하나 이상 고르세요' }, 400)
+  const report = reports.length === REPORTS.length ? '전부' : reports.join(',')
 
   const r = await gh('dispatches', {
     method: 'POST',
-    body: JSON.stringify({ ref: 'main', inputs: { month, report: body.report, load: body.load === true } }),
+    body: JSON.stringify({ ref: 'main', inputs: { month, report, load: body.load === true } }),
   })
   if (!r.ok) return json({ error: `GitHub ${r.status}: ${await r.text()}` }, 502)
   return json({ ok: true })

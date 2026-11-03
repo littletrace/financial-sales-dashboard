@@ -280,6 +280,9 @@ tbody tr:hover { background: #f5f9ff; }
 .run-dialog form { display: grid; gap: 12px; }
 .run-dialog label { display: grid; gap: 4px; font-size: 0.85rem; }
 .run-dialog label.check { display: flex; align-items: center; gap: 8px; }
+.report-picks { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.report-picks legend { padding: 0; margin-bottom: 4px; font-size: 0.85rem; }
+.report-picks label.sub { padding-left: 24px; }
 .run-dialog input:not([type='checkbox']), .run-dialog select {
   height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: inherit; font: inherit;
 }

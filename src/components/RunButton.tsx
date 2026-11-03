@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Play } from 'lucide-react'
 
 // api/run.ts 의 REPORTS 와 같은 순서
-const REPORTS = ['전부', '거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)']
+const REPORTS = ['거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)']
 interface Run { status: string; conclusion: string | null; createdAt: string }
 
 /** 영림원 다운로드 → DB 적재 실행 버튼. 실행 성공으로 끝나면 onDone(데이터 새로고침) 호출 */
@@ -13,6 +13,9 @@ export function RunButton({ onDone }: { onDone: () => void }) {
   const [run, setRun] = useState<Run | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
+  const [picked, setPicked] = useState<string[]>(REPORTS)
+  const all = picked.length === REPORTS.length
+  const togglePick = (n: string) => setPicked((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n]))
 
   const poll = useCallback(async () => {
     const r = await fetch('/api/run').catch(() => null)
@@ -42,7 +45,7 @@ export function RunButton({ onDone }: { onDone: () => void }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        password: f.get('password'), month: f.get('month'), report: f.get('report'), load: f.get('load') === 'on',
+        password: f.get('password'), month: f.get('month'), reports: picked, load: f.get('load') === 'on',
       }),
     }).catch(() => null)
     setBusy(false)
@@ -51,6 +54,7 @@ export function RunButton({ onDone }: { onDone: () => void }) {
       return
     }
     form.reset()
+    setPicked(REPORTS)
     since.current = Date.now() - 10_000 // PC·GitHub 시계 차이 여유
     dialog.current?.close()
     setRun({ status: 'queued', conclusion: null, createdAt: new Date().toISOString() })
@@ -69,11 +73,23 @@ export function RunButton({ onDone }: { onDone: () => void }) {
           <label>조회 월 <span className="muted small">(비우면 매출 전월+당월, 재고 당월, 손익 1월~당월)</span>
             <input type="month" name="month" />
           </label>
-          <label>화면
-            <select name="report" defaultValue="전부">
-              {REPORTS.map((r) => <option key={r}>{r}</option>)}
-            </select>
-          </label>
+          <fieldset className="report-picks">
+            <legend>화면</legend>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={all}
+                ref={(el) => { if (el) el.indeterminate = picked.length > 0 && !all }}
+                onChange={() => setPicked(all ? [] : REPORTS)}
+              />
+              전부
+            </label>
+            {REPORTS.map((n) => (
+              <label key={n} className="check sub">
+                <input type="checkbox" checked={picked.includes(n)} onChange={() => togglePick(n)} /> {n}
+              </label>
+            ))}
+          </fieldset>
           <label className="check"><input type="checkbox" name="load" defaultChecked /> 받은 뒤 DB 적재</label>
           <label>비밀번호
             <input type="password" name="password" required autoComplete="current-password" autoFocus />
@@ -81,7 +97,9 @@ export function RunButton({ onDone }: { onDone: () => void }) {
           {msg && <p className="run-error" role="alert">{msg}</p>}
           <div className="run-actions">
             <button type="button" className="btn ghost" onClick={() => dialog.current?.close()}>취소</button>
-            <button className="btn" disabled={busy}>{busy ? '요청 중…' : '실행'}</button>
+            <button className="btn" disabled={busy || !picked.length} title={picked.length ? undefined : '화면을 하나 이상 고르세요'}>
+              {busy ? '요청 중…' : '실행'}
+            </button>
           </div>
         </form>
       </dialog>
