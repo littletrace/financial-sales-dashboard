@@ -75,7 +75,6 @@ interface Totals {
 interface TeamSummary extends Totals {
   sales_team: string
   rate: number | null
-  share: number
   target: number | null // 매출목표 (실적이 있는 월만 합산)
   achieve: number | null // 달성률 = 매출액 ÷ 매출목표
 }
@@ -238,7 +237,6 @@ export default function App() {
 
   const teamSummary = useMemo<TeamSummary[]>(() => {
     const rows = data?.team.filter(inMonth) ?? []
-    const grand = sum(rows).supply
     // 전체 기간이면 실적이 있는 월(1월~당월)의 목표만 합산: 아직 안 온 달 목표까지 넣으면 달성률이 의미 없음
     const targetOf = new Map<string, number>()
     for (const t of data?.targets ?? []) {
@@ -249,7 +247,7 @@ export default function App() {
       const t = sum(list)
       const target = targetOf.get(name) ?? null
       return {
-        sales_team: name, ...t, rate: rate(t.profit, t.costedSupply), share: grand ? (t.supply / grand) * 100 : 0,
+        sales_team: name, ...t, rate: rate(t.profit, t.costedSupply),
         target, achieve: target ? (t.supply / target) * 100 : null,
       }
     })
@@ -676,17 +674,6 @@ function teamColumns(selected: string): Column<TeamSummary>[] {
     { key: 'profit', label: '매출이익', align: 'right', render: profitCell },
     { key: 'rate', label: '이익률', align: 'right', render: pct },
     { key: 'qty', label: '수량', align: 'right', render: (r) => fmtNumber(r.qty) },
-    {
-      key: 'share',
-      label: '점유율',
-      align: 'right',
-      render: (r) => (
-        <span className="share">
-          <span className="share-bar" style={{ width: `${Math.min(100, r.share)}%` }} />
-          {r.share.toFixed(1)}%
-        </span>
-      ),
-    },
   ]
 }
 

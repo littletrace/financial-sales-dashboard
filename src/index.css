@@ -146,11 +146,8 @@ tbody tr:hover { background: #f5f9ff; }
 .rank { width: 44px; color: var(--muted); text-align: center; }
 .empty { text-align: center; color: var(--muted); padding: 40px; }
 .highlight { color: var(--accent); font-weight: 600; }
-.share { position: relative; display: inline-block; min-width: 90px; }
-.share-bar {
-  position: absolute; right: 0; bottom: -4px; height: 3px; border-radius: 2px;
-  background: var(--accent); max-width: 100%;
-}
+.dragging { opacity: 0.4; }
+th.drop-target { box-shadow: inset 2px 0 0 var(--accent); }
 
 /* ---------- Animations ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }

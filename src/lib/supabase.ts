@@ -8,7 +8,15 @@ const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_ANON_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlnZ2prbGxsZGhodmZ2Y25zZ2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzNTU3NzEsImV4cCI6MjEwNDkzMTc3MX0.kV9uuUmjEW4R7ImEsuySYwwO-vB1HcYpGAHyV5J4c7k'
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+// 로그인 세션은 탭을 닫으면 사라지게 sessionStorage 에 둔다 (새로고침은 유지, 새 탭·재접속은 다시 로그인)
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { storage: sessionStorage } })
+
+// 예전 버전이 localStorage 에 남긴 로그인 토큰 정리 (남아 있으면 PC에 리프레시 토큰이 계속 남음)
+try {
+  for (const k of Object.keys(localStorage)) if (/^sb-.+-auth-token$/.test(k)) localStorage.removeItem(k)
+} catch {
+  /* 저장소 접근 불가 환경 무시 */
+}
 
 // Supabase Auth 는 이메일 기반이라 아이디를 고정 도메인 이메일로 바꿔 로그인한다 (test → test@dashboard.local)
 const LOGIN_DOMAIN = 'dashboard.local'

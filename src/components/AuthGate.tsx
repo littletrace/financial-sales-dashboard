@@ -24,14 +24,16 @@ function Login() {
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
+    const id = String(f.get('id'))
+    const password = String(f.get('password'))
     setBusy(true)
     setMsg('')
-    const { error } = await supabase.auth.signInWithPassword({
-      email: toLoginEmail(String(f.get('id'))),
-      password: String(f.get('password')),
-    })
+    const { error } = await supabase.auth.signInWithPassword({ email: toLoginEmail(id), password })
     setBusy(false)
-    if (error) setMsg(error.message === 'Invalid login credentials' ? '아이디 또는 비밀번호가 틀렸습니다' : error.message)
+    if (error) return setMsg(error.message === 'Invalid login credentials' ? '아이디 또는 비밀번호가 틀렸습니다' : error.message)
+    // 크롬 '비밀번호 저장' 창을 확실히 띄움 (화면 전환이 없는 SPA라 자동 감지가 안 될 수 있음). 미지원 브라우저는 건너뜀
+    const PC = (window as { PasswordCredential?: new (d: { id: string; password: string }) => Credential }).PasswordCredential
+    if (PC) navigator.credentials.store(new PC({ id, password })).catch(() => {})
   }
 
   return (
