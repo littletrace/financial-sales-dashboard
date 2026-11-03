@@ -330,3 +330,45 @@ span.prov { padding: 2px 4px; border-radius: 6px; }
   flex: 1; resize: none; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
   background: var(--field); color: inherit; font: inherit;
 }
+
+/* ---------- 모바일 화면 (MobileView, 640px 이하) ---------- */
+.m-app { display: flex; flex-direction: column; gap: 14px; padding: 0 16px 32px; max-width: 640px; margin: 0 auto; }
+.m-top { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+.m-top .brand { gap: 8px; }
+.m-top h1 { font-size: 1.06rem; }
+.m-mark { width: 28px; height: 28px; border-radius: 8px; box-shadow: none; }
+.m-actions { display: flex; }
+.m-icon { width: 44px; height: 44px; border: 0; background: none; color: #4e5968; display: grid; place-items: center; cursor: pointer; }
+.m-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.m-filters label { display: grid; gap: 4px; font-size: 0.75rem; color: var(--muted); }
+.m-filters select { height: 44px; min-width: 0; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); padding: 0 10px; font-size: 0.94rem; }
+.m-card { background: var(--surface); border-radius: 16px; padding: 16px; }
+.m-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.m-kpis .m-card { display: flex; flex-direction: column; gap: 6px; }
+.m-kpis span { font-size: 0.8rem; color: var(--muted); }
+.m-kpis b { font-size: 1.38rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.m-bar { height: 6px; border-radius: 3px; background: var(--field); overflow: hidden; }
+.m-bar.soft { background: var(--accent-soft); }
+.m-bar i { display: block; height: 100%; border-radius: 3px; background: #90c2ff; }
+.m-bar.soft i, .m-bar i.over { background: var(--accent); }
+.m-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: var(--line); }
+.m-tabs button { height: 40px; border: 0; border-radius: 9px; background: none; color: #4e5968; font-size: 0.88rem; cursor: pointer; }
+.m-tabs button.active { background: var(--surface); color: var(--text); font-weight: 600; }
+.m-count { margin: 0; font-size: 0.8rem; color: var(--muted); }
+.m-list { display: flex; flex-direction: column; gap: 10px; }
+.m-team { display: flex; flex-direction: column; gap: 10px; }
+.m-team.selected { box-shadow: inset 0 0 0 2px var(--accent); }
+.m-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-variant-numeric: tabular-nums; }
+.m-row > b:last-child { font-size: 1.06rem; }
+.m-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-over { color: #1b64da; }
+.m-low { color: #c2410c; }
+.m-rank { list-style: none; margin: 0; padding: 4px 16px; }
+.m-rank li { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--field); }
+.m-rank li:last-child { border-bottom: 0; }
+.m-no { width: 24px; flex: none; text-align: center; font-weight: 700; color: var(--accent); }
+.m-grow { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.m-right { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; font-variant-numeric: tabular-nums; }
+.m-more, .m-pc { height: 48px; border-radius: 12px; font: inherit; font-size: 0.9rem; cursor: pointer; }
+.m-more { border: 1px solid var(--line); background: var(--surface); color: #4e5968; }
+.m-pc { border: 0; background: var(--accent); color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import {
   Bar,
   BarChart,
@@ -17,6 +17,7 @@ import {
   BarChart3,
   Building2,
   LogOut,
+  Smartphone,
   CalendarDays,
   Landmark,
   Package,
@@ -46,6 +47,15 @@ import { DataTable, type Column } from './components/DataTable'
 import { PivotView } from './components/PivotView'
 import { RunButton } from './components/RunButton'
 import { ChatPanel } from './components/ChatPanel'
+import { MobileView } from './components/MobileView'
+
+// 휴대폰 화면 폭이면 모바일 화면(B안)으로
+const NARROW = '(max-width: 640px)'
+const subscribeNarrow = (cb: () => void) => {
+  const mq = matchMedia(NARROW)
+  mq.addEventListener('change', cb)
+  return () => mq.removeEventListener('change', cb)
+}
 
 interface Dataset {
   team: TeamSalesRow[]
@@ -72,14 +82,14 @@ interface Totals {
   buyProfit: number
 }
 
-interface TeamSummary extends Totals {
+export interface TeamSummary extends Totals {
   sales_team: string
   rate: number | null
   target: number | null // 매출목표 (실적이 있는 월만 합산)
   achieve: number | null // 달성률 = 매출액 ÷ 매출목표
 }
 
-interface ItemSummary extends Totals {
+export interface ItemSummary extends Totals {
   item_name: string
   item_code: string
   item_type: string
@@ -88,7 +98,7 @@ interface ItemSummary extends Totals {
   costMonth: string | null // 가결산에 쓴 원가월
 }
 
-interface CustomerSummary extends Totals {
+export interface CustomerSummary extends Totals {
   customer_name: string
   sales_team: string
   rate: number | null
@@ -144,6 +154,8 @@ export default function App() {
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
   const [withSga, setWithSga] = useState(false) // 판관비 포함 보기: 판관비·영업이익 카드 + 영업이익 선
+  const narrow = useSyncExternalStore(subscribeNarrow, () => matchMedia(NARROW).matches)
+  const [pcView, setPcView] = useState(false) // 휴대폰에서 'PC 대시보드 열기'를 누른 경우
   const [withOpen, setWithOpen] = useState(false) // 결산 전 월을 판관비·영업이익 합계에 넣을지 (기본 제외: 판관비가 아직 쌓이는 중)
   const pivotMonths = useMemo(() => [...new Set((data?.team ?? []).map((r) => r.sales_month))].sort(), [data])
   const pivotItems = useMemo(
@@ -337,6 +349,16 @@ export default function App() {
 
   const periodLabel = month === ALL ? '전체 기간' : `${month.slice(0, 4)}년 ${monthLabel(month)}`
 
+  if (narrow && !pcView)
+    return (
+      <MobileView
+        loading={loading} error={error} onReload={load}
+        months={months} month={month} setMonth={setMonth} teams={teams} team={team} setTeam={setTeam}
+        kpi={kpi} teamSummary={teamSummary} topItems={topItems} topCustomers={topCustomers}
+        onPcView={() => { setPcView(true); scrollTo(0, 0) }} onLogout={() => supabase.auth.signOut()}
+      />
+    )
+
   return (
     <div className="app">
       <header className="topbar">
@@ -402,6 +424,11 @@ export default function App() {
             </button>
           )}
           <RunButton onDone={load} />
+          {narrow && (
+            <button className="btn ghost" onClick={() => setPcView(false)} title="모바일 화면으로">
+              <Smartphone size={15} />
+            </button>
+          )}
           <button className="btn ghost" onClick={() => supabase.auth.signOut()} title="로그아웃">
             <LogOut size={15} />
           </button>
