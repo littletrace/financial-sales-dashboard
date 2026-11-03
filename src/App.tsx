@@ -700,7 +700,6 @@ function teamColumns(selected: string): Column<TeamSummary>[] {
     { key: 'cost', label: '원가', align: 'right', render: money('cost') },
     { key: 'profit', label: '매출이익', align: 'right', render: profitCell },
     { key: 'rate', label: '이익률', align: 'right', render: pct },
-    { key: 'qty', label: '수량', align: 'right', render: (r) => fmtNumber(r.qty) },
   ]
 }
 
