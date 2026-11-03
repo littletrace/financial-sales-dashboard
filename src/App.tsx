@@ -15,19 +15,14 @@ import {
 } from 'recharts'
 import {
   BarChart3,
-  Boxes,
   Building2,
   LogOut,
   CalendarDays,
-  Coins,
   Landmark,
   Package,
-  Percent,
   RefreshCw,
   Table as TableIcon,
-  TrendingUp,
   Users,
-  Wallet,
 } from 'lucide-react'
 import {
   getMonthlyChannelSales,
@@ -128,29 +123,6 @@ function sum(rows: SalesMetrics[]): Totals {
     }),
     { supply: 0, costedSupply: 0, cost: 0, profit: 0, qty: 0, provSupply: 0, provProfit: 0, setSupply: 0, setProfit: 0, buySupply: 0, buyProfit: 0 },
   )
-}
-
-/** 이익 칸에 가결산이 섞였으면 '가결산' 배지 (색만으로 구분하지 않도록 글자로 표기) */
-function ProvBadge({ t, costMonth }: { t: Totals; costMonth?: string | null }) {
-  if (!t.provSupply) return null
-  const share = t.costedSupply ? Math.round((t.provSupply / t.costedSupply) * 100) : 100
-  const tip = `원가 미확정 월 매출 ${fmtWon(t.provSupply)}(원가 반영 매출의 ${share}%)은 품목별 최근 확정 원가로 계산한 가결산입니다`
-    + (costMonth ? ` · 적용 원가 ${monthLabel(costMonth)}` : '')
-  return <span className="badge-prov" title={tip}>가결산</span>
-}
-
-/** 원가 이력 없는 세트를 기준표/세트구성.csv 구성품 원가 합으로 추정한 매출이 섞이면 '세트추정' 배지 */
-function SetBadge({ t }: { t: Totals }) {
-  if (!t.setSupply) return null
-  const tip = `세트 매출 ${fmtWon(t.setSupply)}은 원가 이력이 없어 구성품 원가 합으로 추정했습니다 (포장재 원가 제외)`
-  return <span className="badge-prov badge-set" title={tip}>세트추정</span>
-}
-
-/** 원가 이력 없는 품목을 재고금액상세조회 구매단가로 추정한 매출이 섞이면 '구매가추정' 배지 */
-function BuyBadge({ t }: { t: Totals }) {
-  if (!t.buySupply) return null
-  const tip = `매출 ${fmtWon(t.buySupply)}은 원가 이력이 없어 최근 구매단가(구매금액 ÷ 구매수량)로 추정했습니다 (운임·관세 등 부대비용 제외)`
-  return <span className="badge-prov badge-set" title={tip}>구매가추정</span>
 }
 
 function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
@@ -332,10 +304,10 @@ export default function App() {
   const provShare = kpi.costedSupply ? (kpi.provSupply / kpi.costedSupply) * 100 : 0
   const provNote = kpi.provSupply ? ` · 가결산 ${provShare.toFixed(0)}%` : ''
   const kpiCards = [
-    { label: '총 매출액', value: fmtWon(kpi.supply), sub: fmtCompact(kpi.supply) + '원', icon: Wallet, tone: 'blue', prov: false },
-    { label: '총 원가', value: fmtWon(kpi.cost), sub: `원가 반영 매출 ${fmtCompact(kpi.costedSupply)}원${provNote}`, icon: Coins, tone: 'violet', prov: true },
+    { label: '총 매출액', value: fmtWon(kpi.supply), sub: fmtCompact(kpi.supply) + '원', prov: false },
+    { label: '총 원가', value: fmtWon(kpi.cost), sub: `원가 반영 매출 ${fmtCompact(kpi.costedSupply)}원${provNote}`, prov: true },
     {
-      label: '총 매출이익', value: fmtWon(kpi.profit), icon: TrendingUp, tone: 'green', prov: true,
+      label: '총 매출이익', value: fmtWon(kpi.profit), prov: true,
       // 확정 = 전체 − 가결산 − 세트추정 (원가 0 비대상은 확정에 포함)
       sub: kpi.provSupply || kpi.setSupply || kpi.buySupply
         ? [`확정 ${fmtCompact(kpi.profit - kpi.provProfit - kpi.setProfit - kpi.buyProfit)}원`,
@@ -343,18 +315,17 @@ export default function App() {
            (kpi.setSupply || kpi.buySupply) && `추정 ${fmtCompact(kpi.setProfit + kpi.buyProfit)}원`].filter(Boolean).join(' · ')
         : fmtCompact(kpi.profit) + '원',
     },
-    { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.costedSupply)), sub: `매출이익 ÷ 원가 반영 매출${provNote}`, icon: Percent, tone: 'amber', prov: true },
+    { label: '전체 이익률', value: fmtPct(rate(kpi.profit, kpi.costedSupply)), sub: `매출이익 ÷ 원가 반영 매출${provNote}`, prov: true },
     ...(withSga
       ? [
           {
-            label: '판관비', value: sga ? fmtWon(sga.amount) : '-', icon: Landmark, tone: 'cyan', prov: false,
+            label: '판관비', value: sga ? fmtWon(sga.amount) : '-', prov: false,
             sub: team !== ALL ? '부서별 배분 기준 미정 (전체 부서만 표시)'
               : sga ? '영림원 손익계산서 기준' + (openInView.length && !withOpen ? ` · 결산 전 ${openInView.map(monthLabel).join('·')} 제외` : '')
               : openInView.length ? `결산 전 월 · '결산 전 포함'을 누르면 표시` : '판관비 미적재',
           },
           {
-            label: '영업이익', value: opProfit === null ? '-' : fmtWon(opProfit), icon: TrendingUp, prov: true,
-            tone: opProfit !== null && opProfit < 0 ? 'pink' : 'green',
+            label: '영업이익', value: opProfit === null ? '-' : fmtWon(opProfit), prov: true,
             sub: !sga || opProfit === null
               ? (team === ALL && openInView.length ? `결산 전 월 · '결산 전 포함'을 누르면 표시` : '전체 부서에서만 표시')
               : [openInView.length && (withOpen ? `결산 전 ${openInView.map(monthLabel).join('·')} 포함 (판관비 진행 중)`
@@ -363,7 +334,7 @@ export default function App() {
                  `영업이익률 ${fmtPct(rate(opProfit, sga.supply))}`].filter(Boolean).join(' · '),
           },
         ]
-      : [{ label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', icon: Boxes, tone: 'cyan', prov: false }]),
+      : [{ label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', prov: false }]),
   ]
 
   const periodLabel = month === ALL ? '전체 기간' : `${month.slice(0, 4)}년 ${monthLabel(month)}`
@@ -453,7 +424,7 @@ export default function App() {
           <span className="badge-prov">가결산</span>
           <span>
             <b>{provInView.map(monthLabel).join(', ')}</b>은 원가가 확정되지 않아 품목별 가장 최근 확정 원가로 계산한 값입니다.
-            원가·이익·이익률이 결산 후 바뀔 수 있습니다. 차트의 <b>*</b> 표시·빗금 막대, 표의 <span className="badge-prov">가결산</span> 표시가 해당 값입니다.
+            원가·이익·이익률이 결산 후 바뀔 수 있습니다. 차트의 <b>*</b> 표시·빗금 막대, 표의 <i>기울임 글씨</i>가 가결산·추정이 섞인 값입니다.
           </span>
         </div>
       )}
@@ -477,18 +448,10 @@ export default function App() {
       ) : (
         <main className={loading ? 'refreshing' : ''}>
           <section className={withSga ? 'kpis with-sga' : 'kpis'}>
-            {kpiCards.map(({ label, value, sub, icon: Icon, tone, prov }, i) => (
-              <div key={label} className={`kpi glass tone-${tone} ${prov && kpi.provSupply ? 'is-prov' : ''}`} style={{ animationDelay: `${i * 60}ms` }}>
+            {kpiCards.map(({ label, value, sub, prov }, i) => (
+              <div key={label} className={`kpi glass ${prov && kpi.provSupply ? 'is-prov' : ''}`} style={{ animationDelay: `${i * 60}ms` }}>
                 <div className="kpi-head">
-                  <span className="muted">
-                    {label}
-                    {prov && <ProvBadge t={kpi} />}
-                    {prov && <SetBadge t={kpi} />}
-                    {prov && <BuyBadge t={kpi} />}
-                  </span>
-                  <span className="kpi-icon">
-                    <Icon size={17} />
-                  </span>
+                  <span className="muted">{label}</span>
                 </div>
                 <div className="kpi-value">{value}</div>
                 <div className="muted small">{sub}</div>
@@ -628,12 +591,12 @@ export default function App() {
                   <YAxis type="category" dataKey="name" stroke="#64748b" tickLine={false} axisLine={false} width={72} />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    cursor={{ fill: 'rgba(139,92,246,0.06)' }}
+                    cursor={{ fill: 'rgba(111,128,232,0.06)' }}
                     formatter={(v) => [fmtWon(Number(v)), '매출액']}
                   />
                   <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={26}>
                     {regions.map((r) => (
-                      <Cell key={r.name} fill={r.name === '미지정' ? '#cbd5e1' : '#8b5cf6'} />
+                      <Cell key={r.name} fill={r.name === '미지정' ? '#cbd5e1' : '#6f80e8'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -690,14 +653,9 @@ export default function App() {
 }
 
 const money = <T extends Totals>(key: keyof Totals) => (r: T) => fmtWon(r[key])
-// 매출이익 칸: 가결산이 섞인 행은 배지 + 옅은 주황 배경
-const profitCell = <T extends Totals & { costMonth?: string | null }>(r: T) => (
-  <span className={r.provSupply || r.setSupply || r.buySupply ? 'prov' : ''}>
-    {fmtWon(r.profit)}
-    <ProvBadge t={r} costMonth={r.costMonth} />
-    <SetBadge t={r} />
-    <BuyBadge t={r} />
-  </span>
+// 매출이익 칸: 가결산·추정이 섞인 행은 기울임 + 옅은 배경
+const profitCell = <T extends Totals>(r: T) => (
+  <span className={r.provSupply || r.setSupply || r.buySupply ? 'prov' : ''}>{fmtWon(r.profit)}</span>
 )
 const pct = <T extends { rate: number | null }>(r: T) => (
   <span className={r.rate !== null && r.rate < 0 ? 'neg' : ''}>{fmtPct(r.rate)}</span>

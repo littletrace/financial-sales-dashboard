@@ -83,15 +83,7 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
 .kpi { position: relative; overflow: hidden; padding: 20px; animation: rise 0.5s ease both; transition: transform 0.25s, border-color 0.25s; }
 .kpi:hover { transform: translateY(-3px); border-color: #d1d6db; box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.12); }
-.kpi::before {
-  content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--tone), transparent); opacity: 0.8;
-}
 .kpi-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem; }
-.kpi-icon {
-  width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center;
-  color: var(--tone); background: color-mix(in srgb, var(--tone) 16%, transparent);
-}
 .kpi-value {
   font-size: 1.45rem; font-weight: 700; letter-spacing: -0.02em; margin: 14px 0 4px;
   font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -99,12 +91,6 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 /* 판관비 포함 보기(카드 6개): 금액이 잘리지 않도록 카드 너비에 맞춰 글자 크기를 줄임 (최대는 기본 크기) */
 .kpis.with-sga .kpi { container-type: inline-size; }
 .kpis.with-sga .kpi-value { font-size: min(1.45rem, 11cqi); text-overflow: clip; }
-.tone-blue { --tone: #3182f6; }
-.tone-violet { --tone: #7c3aed; }
-.tone-green { --tone: #059669; }
-.tone-amber { --tone: #d97706; }
-.tone-cyan { --tone: #0891b2; }
-.tone-pink { --tone: #e11d48; }
 
 /* ---------- Cards / charts ---------- */
 .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -294,18 +280,18 @@ tbody tr:hover { background: #f5f9ff; }
 .badge-prov {
   display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; vertical-align: 1px;
   font-size: 0.68rem; font-weight: 700; font-style: normal; line-height: 1.5; white-space: nowrap;
-  background: #ffedd5; color: #b45309; border: 1px solid #fed7aa; cursor: help;
+  background: #f3efe9; color: #6f5f4d; border: 1px solid #e2d9cd; cursor: help;
 }
 .prov { font-style: italic; }
-td.prov, span.prov { background: #fff7ed; }
+td.prov, span.prov { background: #faf8f5; }
 span.prov { padding: 2px 4px; border-radius: 6px; }
 .prov-notice {
   display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; padding: 12px 16px; border-radius: 14px;
-  background: #fff7ed; border: 1px dashed #fdba74; color: #7c2d12; font-size: 0.86rem; line-height: 1.6;
+  background: #faf8f5; border: 1px dashed #e2d9cd; color: #4a3f35; font-size: 0.86rem; line-height: 1.6;
 }
 .prov-notice .badge-prov { margin-left: 0; flex: none; margin-top: 2px; }
-.kpi.is-prov { border-style: dashed; border-color: #fdba74; }
-/* 추정(세트·구매가): 가결산(주황)과 구분되도록 차분한 회색 계열 */
+.kpi.is-prov { border-style: dashed; border-color: #e2d9cd; }
+/* 추정(세트·구매가): 가결산(베이지)과 구분되도록 차분한 회색 계열 */
 .badge-set { background: #f2f4f6; color: #4e5968; border-color: #d1d6db; }
 .set-notice { background: #f9fafb; border-color: #d1d6db; color: #333d4b; }
 
