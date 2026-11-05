@@ -318,13 +318,13 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
           <thead>
             <tr>
               <th>{cfg.rows.map((f) => FIELD_LABEL[f]).join(' / ')}</th>
+              {!byMeasure && <th className="num">합계</th>}
               {cols.map((c) => (
                 <th key={c} className="num">
                   {byMeasure ? MEASURE_LABEL[c as Measure] : monthLabel(c)}
                   {!byMeasure && provMonths.has(c) && <span className="badge-prov" title="원가 미확정: 품목별 최근 확정 원가로 계산">가결산</span>}
                 </th>
               ))}
-              {!byMeasure && <th className="num">합계</th>}
             </tr>
           </thead>
           <tbody>
@@ -347,8 +347,8 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
                     n.label
                   )}
                 </td>
-                {cols.map((c) => cell(n, c))}
                 {totalCell(n, 'strong')}
+                {cols.map((c) => cell(n, c))}
               </tr>
             ))}
           </tbody>
@@ -356,8 +356,8 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
             <tfoot>
               <tr>
                 <td className="pivot-label">총계</td>
-                {cols.map((c) => cell(tree, c))}
                 {totalCell(tree, '')}
+                {cols.map((c) => cell(tree, c))}
               </tr>
             </tfoot>
           )}
