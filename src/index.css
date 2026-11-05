@@ -318,12 +318,12 @@ span.prov { padding: 2px 4px; border-radius: 6px; }
 tr.group-start td { border-top: 1px solid var(--line); }
 
 /* ---------- AI 질문 (ChatPanel) ---------- */
-@media (max-width: 640px) { .chat-fab { width: 44px; height: 44px; right: 16px; bottom: 16px; } .chat-fab svg { width: 19px; height: 19px; } }
 .chat-fab {
   position: fixed; right: 20px; bottom: 20px; z-index: 50; width: 52px; height: 52px; border: 0; border-radius: 50%;
   display: grid; place-items: center; background: var(--accent); color: #fff; cursor: pointer;
   box-shadow: 0 8px 20px -8px rgba(49, 130, 246, 0.7);
 }
+@media (max-width: 640px) { .chat-fab { width: 44px; height: 44px; right: 16px; bottom: 16px; } .chat-fab svg { width: 19px; height: 19px; } }
 .chat-panel {
   position: fixed; right: 16px; bottom: 16px; z-index: 50; display: flex; flex-direction: column;
   width: min(420px, calc(100vw - 32px)); height: min(640px, calc(100vh - 32px)); padding: 0; overflow: hidden;
