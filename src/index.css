@@ -114,7 +114,7 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 
 .recharts-wrapper *:focus { outline: none; }
 /* 차트 축 글씨 = 범례 글씨 크기 (두 차트 톤 통일) */
-.recharts-cartesian-axis-tick text { font-size: 0.85rem; }
+.recharts-cartesian-axis-tick-value { font-size: 0.85rem; }
 .pie-card .card-head { margin-bottom: 24px; }
 
 /* ---------- Tabs / table ---------- */
