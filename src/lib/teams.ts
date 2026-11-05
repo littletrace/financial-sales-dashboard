@@ -9,11 +9,11 @@ export const TEAM_MERGE: Record<string, string> = {
   '온라인.구독영업팀': '영업3팀',
 }
 /** 이름만 바꿔 보여줄 부서 (안내 없음) */
-const TEAM_RENAME: Record<string, string> = { 개미네사업본부: '개미네' }
+const TEAM_RENAME: Record<string, string> = { 개미네사업본부: '개미네', '영업운영팀(HCL)': 'HCL 영업운영팀' }
 
 /** 본부 → 소속 부서 (현재 부서명). 여기 없는 부서는 '기타' */
 export const HQ: [string, string[]][] = [
-  ['HCL사업본부', ['영업운영팀(HCL)']],
+  ['HCL사업본부', ['HCL 영업운영팀']],
   ['유통사업본부', ['영업기획팀', '영업1팀', '영업2팀', '영업3팀', '매장영업팀']],
   ['개미네사업본부', ['개미네']],
 ]

@@ -107,6 +107,8 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
   border: 0; border-radius: 6px; background: none; text-align: left; cursor: pointer;
 }
 .legend-btn:hover, .legend-btn:focus-visible { background: var(--accent-soft); }
+.legend-head { padding-bottom: 6px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 0.78rem; font-weight: 600; }
+.legend-head .legend-name { padding-left: 18px; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .legend-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -316,6 +318,7 @@ span.prov { padding: 2px 4px; border-radius: 6px; }
 tr.group-start td { border-top: 1px solid var(--line); }
 
 /* ---------- AI 질문 (ChatPanel) ---------- */
+@media (max-width: 640px) { .chat-fab { width: 44px; height: 44px; right: 16px; bottom: 16px; } .chat-fab svg { width: 19px; height: 19px; } }
 .chat-fab {
   position: fixed; right: 20px; bottom: 20px; z-index: 50; width: 52px; height: 52px; border: 0; border-radius: 50%;
   display: grid; place-items: center; background: var(--accent); color: #fff; cursor: pointer;

@@ -626,6 +626,7 @@ export default function App() {
                   </PieChart>
                 </ResponsiveContainer>
                 <ul className="legend">
+                  <li className="legend-head"><span className="legend-name">부서</span><span>점유율</span></li>
                   {teamPie.map((d, i) => {
                     const total = teamPie.reduce((s, x) => s + x.value, 0)
                     return (

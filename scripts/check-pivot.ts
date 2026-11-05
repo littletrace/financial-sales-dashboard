@@ -21,6 +21,7 @@ assert.equal(currentTeam('개미네사업본부'), '개미네')
 assert.equal(currentTeam('A/S팀'), 'A/S팀')
 assert.deepEqual(dbTeams(['영업2팀']), ['영업2팀', '화장품사업팀', '해외영업팀'])
 assert.deepEqual(dbTeams(['개미네']), ['개미네', '개미네사업본부'])
+assert.deepEqual([currentTeam('영업운영팀(HCL)'), hqOf('HCL 영업운영팀').hq], ['HCL 영업운영팀', 'HCL사업본부'])
 assert.deepEqual([hqOf('영업3팀').hq, hqOf('개미네').hq, hqOf('A/S팀').hq], ['유통사업본부', '개미네사업본부', '기타'])
 {
   const t2 = buildTree(toCurrentTeams([[['유통사업팀'], '2026-02', 1, 100, 60, 40, 100], [['영업1팀'], '2026-06', 1, 50, 30, 20, 50]], ['sales_team']), '')
