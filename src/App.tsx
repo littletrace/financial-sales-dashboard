@@ -440,25 +440,46 @@ export default function App() {
         </div>
       )}
 
-      {provInView.length > 0 && (
-        <div className="prov-notice" role="note">
-          <span className="badge-prov">가결산</span>
-          <span>
-            <b>{provInView.map(monthLabel).join(', ')}</b>은 원가가 확정되지 않아 품목별 가장 최근 확정 원가로 계산한 값입니다.
-            원가·이익·이익률이 결산 후 바뀔 수 있습니다. 차트의 <b>*</b> 표시·빗금 막대, 표의 <i>기울임 글씨</i>가 가결산·추정이 섞인 값입니다.
-          </span>
-        </div>
-      )}
-      {(kpi.setSupply !== 0 || kpi.buySupply !== 0) && (
-        <div className="prov-notice set-notice" role="note">
-          <span className="badge-prov badge-set">추정</span>
-          <span>
-            원가 이력이 없는 매출은 원가를 추정해 계산했습니다.
-            {kpi.setSupply !== 0 && <> <b>세트추정 {fmtCompact(kpi.setSupply)}원</b>: 선물세트 구성품 원가 합(포장재 제외).</>}
-            {kpi.buySupply !== 0 && <> <b>구매가추정 {fmtCompact(kpi.buySupply)}원</b>: 최근 구매단가(부대비용 제외).</>}
-            {' '}운송비·식음료 기타·a/s·적립금차감은 원가 0으로 매출·이익에 포함됩니다.
-          </span>
-        </div>
+      {(provInView.length > 0 || kpi.setSupply !== 0 || kpi.buySupply !== 0) && (
+        // 가결산·추정 안내: 평소 한 줄 요약, '자세히'로 전체 설명
+        <details className="notes" role="note">
+          <summary>
+            {provInView.length > 0 && (
+              <span className="note-item">
+                <span className="badge-prov">가결산</span>
+                <span><b>{provInView.map(monthLabel).join(', ')}</b> 원가 미확정 → 최근 확정 원가로 계산 (결산 후 바뀔 수 있음)</span>
+              </span>
+            )}
+            {(kpi.setSupply !== 0 || kpi.buySupply !== 0) && (
+              <span className="note-item">
+                <span className="badge-prov badge-set">추정</span>
+                <span>원가 이력 없는 매출 <b>{fmtCompact(kpi.setSupply + kpi.buySupply)}원</b> 원가 추정</span>
+              </span>
+            )}
+            <span className="note-more" />
+          </summary>
+          <div className="notes-body">
+            {provInView.length > 0 && (
+              <p>
+                <span className="badge-prov">가결산</span>
+                <span>
+                  원가가 확정되지 않아 품목별 가장 최근 확정 원가로 계산한 값입니다. 원가·이익·이익률이 결산 후 바뀔 수 있습니다.
+                  차트의 <b>*</b> 표시·빗금 막대, 표의 <i>기울임 글씨</i>가 가결산·추정이 섞인 값입니다.
+                </span>
+              </p>
+            )}
+            {(kpi.setSupply !== 0 || kpi.buySupply !== 0) && (
+              <p>
+                <span className="badge-prov badge-set">추정</span>
+                <span>
+                  {kpi.setSupply !== 0 && <><b>세트추정 {fmtCompact(kpi.setSupply)}원</b>: 선물세트 구성품 원가 합(포장재 제외). </>}
+                  {kpi.buySupply !== 0 && <><b>구매가추정 {fmtCompact(kpi.buySupply)}원</b>: 최근 구매단가(부대비용 제외). </>}
+                  운송비·식음료 기타·a/s·적립금차감은 원가 0으로 매출·이익에 포함됩니다.
+                </span>
+              </p>
+            )}
+          </div>
+        </details>
       )}
 
       {loading && !data ? (
