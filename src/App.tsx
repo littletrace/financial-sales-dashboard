@@ -112,6 +112,7 @@ const ALL = 'all'
 const PALETTE = ['#3182f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#f97316', '#94a3b8']
 // 도넛 조각: 막대처럼 그라데이션 (바깥 진하게 → 안쪽 옅게). 원 중심 기준이라 조각마다 같은 방향
 function pieGradShape(p: PieSectorShapeProps) {
+  if ((p.percent ?? 0) < 0.01) return <Sector {...p} /> // 1% 미만 조각은 원색 (그라데이션이면 너무 옅어 안 보임)
   const id = `pie-grad-${p.index}`
   return (
     <g>
