@@ -595,20 +595,20 @@ export default function App() {
               </ResponsiveContainer>
             </div>
 
-            <div className="card glass">
+            <div className="card glass pie-card">
               <div className="card-head">
                 <h2>부서별 매출 점유율</h2>
                 <span className="muted small">{periodLabel}</span>
               </div>
               <div className="pie-wrap">
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={240}>
                   <PieChart>
                     <Pie
                       data={teamPie}
                       dataKey="value"
                       nameKey="name"
-                      innerRadius={58}
-                      outerRadius={90}
+                      innerRadius={60}
+                      outerRadius={108}
                       paddingAngle={2}
                       stroke="none"
                       cursor="pointer"

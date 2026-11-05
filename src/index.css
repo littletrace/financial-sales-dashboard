@@ -103,7 +103,7 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 .legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; }
 .legend li { display: flex; align-items: center; gap: 8px; }
 .legend-btn {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px 6px; margin: -2px -6px;
+  display: flex; align-items: center; gap: 8px; width: calc(100% + 12px); padding: 2px 6px; margin: -2px -6px; /* 여백만큼 넓혀 제목 줄과 좌우 정렬 */
   border: 0; border-radius: 6px; background: none; text-align: left; cursor: pointer;
 }
 .legend-btn:hover, .legend-btn:focus-visible { background: var(--accent-soft); }
@@ -113,6 +113,9 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 .legend-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .recharts-wrapper *:focus { outline: none; }
+/* 차트 축 글씨 = 범례 글씨 크기 (두 차트 톤 통일) */
+.recharts-cartesian-axis-tick text { font-size: 0.85rem; }
+.pie-card .card-head { margin-bottom: 24px; }
 
 /* ---------- Tabs / table ---------- */
 .tabs {
