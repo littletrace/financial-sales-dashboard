@@ -1,0 +1,33 @@
+# PR마다 Vercel 미리보기 배포 + PR에 주소 댓글
+# 필요한 Secret: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# 미리보기는 운영과 같은 DB를 씀. 비밀값(RUN_PASSWORD 등)은 운영에만 있어 미리보기에선 DB적재·AI질문이 동작하지 않음
+name: Preview
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm i -g vercel@latest
+      - run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      - run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      - id: dep
+        run: echo "url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})" >> "$GITHUB_OUTPUT"
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo, issue_number: context.issue.number,
+              body: `미리보기: ${{ steps.dep.outputs.url }}`
+            })
