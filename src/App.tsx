@@ -544,6 +544,7 @@ export default function App() {
                   <XAxis dataKey="label" stroke="#64748b" tickLine={false} axisLine={false} />
                   <YAxis stroke="#64748b" tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={56} />
                   <Tooltip
+                    isAnimationActive={false} // 툴팁이 날아오지 않고 그 자리에 바로 나타나게
                     contentStyle={tooltipStyle}
                     cursor={{ fill: 'rgba(49,130,246,0.06)' }}
                     formatter={(v, name, item) => [
@@ -607,8 +608,8 @@ export default function App() {
                       data={teamPie}
                       dataKey="value"
                       nameKey="name"
-                      innerRadius={60}
-                      outerRadius={108}
+                      innerRadius="56%"
+                      outerRadius="90%"
                       paddingAngle={2}
                       stroke="none"
                       cursor="pointer"
@@ -622,7 +623,7 @@ export default function App() {
                         />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={tooltipStyle} formatter={(v) => fmtWon(Number(v))} />
+                    <Tooltip isAnimationActive={false} contentStyle={tooltipStyle} formatter={(v) => fmtWon(Number(v))} />
                   </PieChart>
                 </ResponsiveContainer>
                 <ul className="legend">
