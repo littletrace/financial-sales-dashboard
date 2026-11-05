@@ -46,14 +46,6 @@ export interface TeamSalesRow extends SalesMetrics {
   row_count: number
 }
 
-export interface ChannelSalesRow extends SalesMetrics {
-  sales_month: string
-  sales_team: string
-  channel_type: string
-  region: string
-  row_count: number
-}
-
 export interface ItemSalesRow extends SalesMetrics {
   sales_month: string
   item_type: string | null
@@ -153,9 +145,6 @@ export async function getPlMonthly(): Promise<PlRow[]> {
 
 export const getMonthlyTeamSales = () =>
   fetchAll<TeamSalesRow>('v_sales_monthly_team', ['sales_month', 'sales_team'])
-
-export const getMonthlyChannelSales = () =>
-  fetchAll<ChannelSalesRow>('v_sales_monthly_channel', ['sales_month', 'sales_team', 'channel_type', 'region'])
 
 export const getMonthlyItemSales = () =>
   fetchAll<ItemSalesRow>('v_sales_monthly_item', ['sales_month', 'item_type', 'item_category', 'item_name', 'item_code'])

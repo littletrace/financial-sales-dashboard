@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
@@ -26,7 +25,6 @@ import {
   Users,
 } from 'lucide-react'
 import {
-  getMonthlyChannelSales,
   getMonthlyCustomerSales,
   getMonthlyItemSales,
   getMonthlyTeamSales,
@@ -37,7 +35,6 @@ import {
   type PlRow,
   type SalesTarget,
   type SalesMetrics,
-  type ChannelSalesRow,
   type CustomerSalesRow,
   type ItemSalesRow,
   type TeamSalesRow,
@@ -59,7 +56,6 @@ const subscribeNarrow = (cb: () => void) => {
 
 interface Dataset {
   team: TeamSalesRow[]
-  channel: ChannelSalesRow[]
   item: ItemSalesRow[]
   customer: CustomerSalesRow[]
   targets: SalesTarget[]
@@ -171,16 +167,15 @@ export default function App() {
     setLoading(true)
     setError(null)
     try {
-      const [teamRows, channel, item, customer, targets, pl, lastLoaded] = await Promise.all([
+      const [teamRows, item, customer, targets, pl, lastLoaded] = await Promise.all([
         getMonthlyTeamSales(),
-        getMonthlyChannelSales(),
         getMonthlyItemSales(),
         getMonthlyCustomerSales(),
         getSalesTargets(),
         getPlMonthly(),
         getLastLoadedAt(),
       ])
-      setData({ team: teamRows, channel, item, customer, targets, pl })
+      setData({ team: teamRows, item, customer, targets, pl })
       setLoadedAt(lastLoaded)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -271,13 +266,6 @@ export default function App() {
     const rest = sorted.slice(7).reduce((s, t) => s + t.supply, 0)
     return rest > 0 ? [...head, { name: '기타', value: rest }] : head
   }, [teamSummary])
-
-  const regions = useMemo(() => {
-    const rows = data?.channel.filter((r) => inMonth(r) && inTeam(r)) ?? []
-    return [...groupBy(rows, (r) => r.region || '미지정')]
-      .map(([name, list]) => ({ name, value: sum(list).supply }))
-      .sort((a, b) => b.value - a.value)
-  }, [data, inMonth, inTeam])
 
   const topItems = useMemo<ItemSummary[]>(() => {
     const rows = data?.item.filter(inMonth) ?? []
@@ -485,7 +473,7 @@ export default function App() {
           </section>
 
           <section className="charts">
-            <div className="card glass span-2">
+            <div className="card glass">
               <div className="card-head">
                 <h2>월별 매출 추이</h2>
                 <span className="muted small">
@@ -604,29 +592,6 @@ export default function App() {
               </div>
             </div>
 
-            <div className="card glass">
-              <div className="card-head">
-                <h2>권역별 매출 분포</h2>
-                <span className="muted small">{team === ALL ? '전체 부서' : team}</span>
-              </div>
-              <ResponsiveContainer width="100%" height={Math.max(200, regions.length * 44)}>
-                <BarChart data={regions} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
-                  <CartesianGrid stroke="#eef0f3" horizontal={false} />
-                  <XAxis type="number" stroke="#64748b" tickLine={false} axisLine={false} tickFormatter={fmtCompact} />
-                  <YAxis type="category" dataKey="name" stroke="#64748b" tickLine={false} axisLine={false} width={72} />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    cursor={{ fill: 'rgba(111,128,232,0.06)' }}
-                    formatter={(v) => [fmtWon(Number(v)), '매출액']}
-                  />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={26}>
-                    {regions.map((r) => (
-                      <Cell key={r.name} fill={r.name === '미지정' ? '#cbd5e1' : '#6f80e8'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
           </section>
 
           <section className="card glass">
