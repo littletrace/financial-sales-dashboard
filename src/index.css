@@ -200,11 +200,6 @@ th.drop-target { box-shadow: inset 2px 0 0 var(--accent); }
 .chip.group { border-style: dashed; }
 .chip.group.active { border-style: solid; }
 .chip.small svg { vertical-align: -2px; }
-.tag-new {
-  padding: 1px 6px; border-radius: 6px; font-size: 0.66rem; font-weight: 700; line-height: 1.5;
-  background: var(--accent-soft); color: #1b64da; border: 1px solid #c9e0ff;
-}
-.chip.active .tag-new { background: rgba(255, 255, 255, 0.22); color: #fff; border-color: transparent; }
 .preset-note {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 14px; border-radius: 12px;
   background: var(--head); border: 1px solid var(--line); font-size: 0.84rem;

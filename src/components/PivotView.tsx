@@ -141,10 +141,7 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
                   title={p.old ? `구 시트 ${p.old}` : '시트에 없던 조합'}
                   onClick={() => choose(p.id)}
                 >
-                  <span className="ct">
-                    {p.name}
-                    {!p.old && <span className="tag-new">신규</span>}
-                  </span>
+                  <span className="ct">{p.name}</span>
                   <span className="cs">{pathLabel(p.rows)}</span>
                 </button>
               ))}
