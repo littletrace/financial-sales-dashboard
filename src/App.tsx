@@ -8,6 +8,8 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
+  Sector,
+  type PieSectorShapeProps,
   Tooltip,
   XAxis,
   YAxis,
@@ -108,6 +110,22 @@ type Tab = 'team' | 'item' | 'customer' | 'pivot'
 
 const ALL = 'all'
 const PALETTE = ['#3182f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#f97316', '#94a3b8']
+// 도넛 조각: 막대처럼 그라데이션 (바깥 진하게 → 안쪽 옅게). 원 중심 기준이라 조각마다 같은 방향
+function pieGradShape(p: PieSectorShapeProps) {
+  const id = `pie-grad-${p.index}`
+  return (
+    <g>
+      <defs>
+        <radialGradient id={id} gradientUnits="userSpaceOnUse" cx={p.cx} cy={p.cy} r={p.outerRadius}>
+          <stop offset={(p.innerRadius ?? 0) / (p.outerRadius || 1)} stopColor={p.fill} stopOpacity={0.62} />
+          <stop offset={1} stopColor={p.fill} stopOpacity={0.95} />
+        </radialGradient>
+      </defs>
+      <Sector {...p} fill={`url(#${id})`} />
+    </g>
+  )
+}
+
 const tooltipStyle = {
   background: '#ffffff',
   border: '1px solid #e5e8eb',
@@ -611,6 +629,8 @@ export default function App() {
                       innerRadius="56%"
                       outerRadius="90%"
                       paddingAngle={2}
+                      minAngle={3} // 0.4% 같은 작은 조각도 보이게
+                      shape={pieGradShape}
                       stroke="none"
                       cursor="pointer"
                       onClick={(_, i) => openTeamPivot(teamPie[i].teams)}

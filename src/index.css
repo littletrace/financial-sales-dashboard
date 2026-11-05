@@ -109,7 +109,7 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 .legend-btn:hover, .legend-btn:focus-visible { background: var(--accent-soft); }
 .legend-head { padding-bottom: 6px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 0.78rem; font-weight: 600; }
 .legend-head .legend-name { padding-left: 18px; }
-.legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; opacity: 0.8; } /* 도넛 그라데이션 중간 농도 */
 .legend-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .recharts-wrapper *:focus { outline: none; }
