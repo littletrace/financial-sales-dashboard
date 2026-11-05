@@ -149,6 +149,13 @@ export default function App() {
   const [month, setMonth] = useState(ALL)
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
+  // 점유율 차트에서 부서 클릭 → 조회 탭을 그 부서의 거래처별 매출·원가로 열기 (key로 매번 새로 열림)
+  const [pivotFocus, setPivotFocus] = useState<{ key: number; teams: string[] } | null>(null)
+  const openTeamPivot = (teams: string[]) => {
+    setPivotFocus((f) => ({ key: (f?.key ?? 0) + 1, teams }))
+    setTab('pivot')
+    document.getElementById('detail-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const [withSga, setWithSga] = useState(false) // 판관비 포함 보기: 판관비·영업이익 카드 + 영업이익 선
   const narrow = useSyncExternalStore(subscribeNarrow, () => matchMedia(NARROW).matches)
   const [pcView, setPcView] = useState(false) // 휴대폰에서 'PC 대시보드 열기'를 누른 경우
@@ -262,9 +269,10 @@ export default function App() {
 
   const teamPie = useMemo(() => {
     const sorted = [...teamSummary].sort((a, b) => b.supply - a.supply)
-    const head = sorted.slice(0, 7).map((t) => ({ name: t.sales_team, value: t.supply }))
-    const rest = sorted.slice(7).reduce((s, t) => s + t.supply, 0)
-    return rest > 0 ? [...head, { name: '기타', value: rest }] : head
+    const head = sorted.slice(0, 7).map((t) => ({ name: t.sales_team, value: t.supply, teams: [t.sales_team] }))
+    const rest = sorted.slice(7)
+    const restSum = rest.reduce((s, t) => s + t.supply, 0)
+    return restSum > 0 ? [...head, { name: '기타', value: restSum, teams: rest.map((t) => t.sales_team) }] : head
   }, [teamSummary])
 
   const topItems = useMemo<ItemSummary[]>(() => {
@@ -565,6 +573,8 @@ export default function App() {
                       outerRadius={90}
                       paddingAngle={2}
                       stroke="none"
+                      cursor="pointer"
+                      onClick={(_, i) => openTeamPivot(teamPie[i].teams)}
                     >
                       {teamPie.map((d, i) => (
                         <Cell
@@ -582,9 +592,11 @@ export default function App() {
                     const total = teamPie.reduce((s, x) => s + x.value, 0)
                     return (
                       <li key={d.name}>
-                        <i style={{ background: PALETTE[i % PALETTE.length] }} />
-                        <span className="legend-name">{d.name}</span>
-                        <span className="muted">{total ? ((d.value / total) * 100).toFixed(1) : 0}%</span>
+                        <button type="button" className="legend-btn" title={`${d.name} 거래처별 매출·원가 보기`} onClick={() => openTeamPivot(d.teams)}>
+                          <i style={{ background: PALETTE[i % PALETTE.length] }} />
+                          <span className="legend-name">{d.name}</span>
+                          <span className="muted">{total ? ((d.value / total) * 100).toFixed(1) : 0}%</span>
+                        </button>
                       </li>
                     )
                   })}
@@ -594,7 +606,7 @@ export default function App() {
 
           </section>
 
-          <section className="card glass">
+          <section className="card glass" id="detail-tabs">
             <nav className="tabs">
               <button className={tab === 'team' ? 'active' : ''} onClick={() => setTab('team')}>
                 <Building2 size={15} /> 부서별 실적
@@ -623,7 +635,10 @@ export default function App() {
                   note={team === ALL ? undefined : '품목 집계에는 부서 필터가 적용되지 않습니다'}
                 />
               )}
-              {tab === 'pivot' && <PivotView months={pivotMonths} teams={pivotTeams} provMonths={provMonths} itemNames={pivotItems} />}
+              {tab === 'pivot' && <PivotView
+                  key={pivotFocus?.key ?? 0}
+                  focus={pivotFocus && { teams: pivotFocus.teams, month: month === ALL ? null : month }}
+                  months={pivotMonths} teams={pivotTeams} provMonths={provMonths} itemNames={pivotItems} />}
               {tab === 'customer' && (
                 <DataTable
                   rows={topCustomers}

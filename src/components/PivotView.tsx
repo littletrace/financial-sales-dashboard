@@ -9,6 +9,7 @@ import {
 } from '../lib/pivot'
 
 const CUSTOM = 'custom'
+const TEAM_CUSTOMER = 'team-customer'
 const GROUPS = [...new Set(PRESETS.map((p) => p.group))]
 const pathLabel = (rows: Field[]) => rows.map((f) => FIELD_LABEL[f]).join(' > ')
 const fmt = (v: number | null, m: Measure) => (v == null ? '' : m === 'rate' ? `${(v * 100).toFixed(1)}%` : fmtNumber(v))
@@ -26,12 +27,16 @@ function Seg<T extends string>({ value: v, options, onChange }: { value: T; opti
   )
 }
 
-export function PivotView({ months, teams, provMonths, itemNames }: { months: string[]; teams: string[]; provMonths: Set<string>; itemNames: string[] }) {
-  const [presetId, setPresetId] = useState(CUSTOM)
-  const [cfg, setCfgState] = useState<Cfg>(() => presetCfg(undefined))
+export function PivotView({ months, teams, provMonths, itemNames, focus }: {
+  months: string[]; teams: string[]; provMonths: Set<string>; itemNames: string[]
+  focus?: { teams: string[]; month: string | null } | null // 점유율 차트에서 부서 클릭으로 열 때
+}) {
+  const [presetId, setPresetId] = useState(focus ? TEAM_CUSTOMER : CUSTOM)
+  const [cfg, setCfgState] = useState<Cfg>(() =>
+    focus ? { ...presetCfg(PRESETS.find((p) => p.id === TEAM_CUSTOMER)), teams: focus.teams } : presetCfg(undefined))
   const [modified, setModified] = useState(false)
-  const [from, setFrom] = useState(months[0] ?? '')
-  const [to, setTo] = useState(months[months.length - 1] ?? '')
+  const [from, setFrom] = useState(focus?.month ?? months[0] ?? '')
+  const [to, setTo] = useState(focus?.month ?? months[months.length - 1] ?? '')
   const [query, setQuery] = useState('')
   const [suggestOpen, setSuggestOpen] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())

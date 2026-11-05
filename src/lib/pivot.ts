@@ -55,6 +55,7 @@ export interface Preset extends Partial<Cfg> {
 }
 export const PRESETS: Preset[] = [
   { group: '부서', id: 'team', name: '부서별 매출', rows: ['sales_team'], ex: 'ext', old: '조회3' },
+  { group: '부서', id: 'team-customer', name: '부서 거래처별 매출·원가', rows: ['customer_name'], col: 'measure' },
   { group: '부서', id: 'team-store', name: '부서별 영업점별 매출', rows: ['sales_team', 'item_category', 'customer_name'], ex: 'base', src: '국내', ch: '영업점', old: '조회5' },
   { group: '영업점', id: 'store', name: '영업점별 매출·원가', rows: ['customer_name', 'item_category'], ex: 'base', src: '국내', ch: '영업점', col: 'measure', old: '조회4' },
   { group: '품목', id: 'retail-item', name: '유통사업본부 품목별 판매처', rows: ['sales_team', 'item_category', 'item_name', 'customer_name'], ex: 'base', src: '국내', teams: RETAIL4, old: '조회7' },

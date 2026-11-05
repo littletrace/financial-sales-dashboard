@@ -14,6 +14,10 @@ assert.deepEqual(p('store'), {
 }) // 조회4
 assert.deepEqual(p('retail-item').teams, ['매장영업팀', '영업1팀', '영업기획팀', '화장품사업팀']) // 조회7
 assert.equal(p('dairy').items?.length, 2)
+// 점유율 차트 부서 클릭: 거래처 행 + 부서 필터, 비상품도 포함 (KPI 기준)
+assert.deepEqual(toParams({ ...presetCfg(PRESETS.find((x) => x.id === 'team-customer')), teams: ['영업1팀'] }, '2026-10', '2026-10'), {
+  rows: ['customer_name'], from: '2026-10', to: '2026-10', exclude: undefined, channel: undefined, teams: ['영업1팀'], items: undefined, sources: undefined,
+})
 // 기본값 = 전체 포함 (KPI 기준)
 assert.deepEqual(toParams(presetCfg(undefined), '', ''), {
   rows: ['sales_team', 'item_category'], from: null, to: null, exclude: undefined, channel: undefined, teams: null, items: undefined, sources: undefined,

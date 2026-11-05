@@ -102,6 +102,11 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 .pie-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 8px; }
 .legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; }
 .legend li { display: flex; align-items: center; gap: 8px; }
+.legend-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 2px 6px; margin: -2px -6px;
+  border: 0; border-radius: 6px; background: none; text-align: left; cursor: pointer;
+}
+.legend-btn:hover, .legend-btn:focus-visible { background: var(--accent-soft); }
 .legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .legend-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
