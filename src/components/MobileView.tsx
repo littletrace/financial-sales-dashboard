@@ -40,14 +40,20 @@ export function MobileView(p: Props) {
     setTab(t)
     setOpen(false)
   }
+  // 부서 카드 탭 → 그 부서로 거르고 거래처 순위(매출·이익·이익률)로 이동 (PC 점유율 클릭 → 조회와 같은 정보)
+  const openTeam = (team: string) => {
+    p.setTeam(team)
+    pick('customer')
+    document.querySelector('.m-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   const ranked =
     tab === 'item'
       ? p.topItems.map((r) => ({
-          name: r.item_name, sub: `${r.item_type || '분류 없음'} · ${fmtNumber(r.qty)}개`, supply: r.supply, rate: r.rate,
+          name: r.item_name, sub: `${r.item_type || '분류 없음'} · ${fmtNumber(r.qty)}개`, supply: r.supply, profit: r.profit, rate: r.rate,
         }))
       : p.topCustomers.map((r) => {
           const ts = r.sales_team.split(', ')
-          return { name: r.customer_name, sub: ts.length > 1 ? `${ts[0]} 외 ${ts.length - 1}곳` : ts[0], supply: r.supply, rate: r.rate }
+          return { name: r.customer_name, sub: ts.length > 1 ? `${ts[0]} 외 ${ts.length - 1}곳` : ts[0], supply: r.supply, profit: r.profit, rate: r.rate }
         })
 
   return (
@@ -106,13 +112,13 @@ export function MobileView(p: Props) {
       <p className="m-count">
         {tab === 'team' ? `${p.teamSummary.length}개 부서 · 매출액순`
           : tab === 'item' ? `매출액 상위 ${p.topItems.length}개 품목${p.team === ALL ? '' : ' · 부서 필터 미적용'}`
-          : `매출액 상위 ${p.topCustomers.length}개 거래처`}
+          : `${p.team === ALL ? '' : p.team + ' · '}매출액 상위 ${p.topCustomers.length}개 거래처`}
       </p>
 
       {tab === 'team' ? (
         <div className="m-list">
           {[...p.teamSummary].sort((a, b) => b.supply - a.supply).map((t) => (
-            <article key={t.sales_team} className={`m-card m-team ${t.sales_team === p.team ? 'selected' : ''}`}>
+            <button type="button" key={t.sales_team} className={`m-card m-team ${t.sales_team === p.team ? 'selected' : ''}`} onClick={() => openTeam(t.sales_team)}>
               <div className="m-row"><b className="m-name">{t.sales_team}</b><b>{fmtCompact(t.supply)}</b></div>
               <div className="m-bar"><i className={t.achieve !== null && t.achieve >= 100 ? 'over' : ''} style={{ width: `${Math.min(100, t.achieve ?? 0)}%` }} /></div>
               <div className="m-row muted small">
@@ -121,7 +127,7 @@ export function MobileView(p: Props) {
                 )}
                 <span>이익률 {fmtPct(t.rate)}</span>
               </div>
-            </article>
+            </button>
           ))}
         </div>
       ) : (
@@ -131,7 +137,7 @@ export function MobileView(p: Props) {
               <li key={r.name + i}>
                 <span className="m-no">{i + 1}</span>
                 <div className="m-grow"><b className="m-name">{r.name}</b><span className="muted small">{r.sub}</span></div>
-                <div className="m-right"><b>{fmtCompact(r.supply)}</b><span className="muted small">이익률 {fmtPct(r.rate)}</span></div>
+                <div className="m-right"><b>{fmtCompact(r.supply)}</b><span className="muted small">이익 {fmtCompact(r.profit)} · {fmtPct(r.rate)}</span></div>
               </li>
             ))}
             {ranked.length === 0 && <li className="muted">데이터가 없습니다.</li>}
