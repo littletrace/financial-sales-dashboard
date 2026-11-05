@@ -1,5 +1,6 @@
 // 조회 탭 피벗: 프리셋 정의 + 조건 → RPC 파라미터 + 트리 집계 (React 없이 점검 가능: scripts/check-pivot.ts)
 import type { PivotParams, PivotRow } from './supabase'
+import { HQ, currentTeam, dbTeams } from './teams.ts'
 
 export type Field =
   | 'sales_team' | 'customer_name' | 'item_category' | 'item_type' | 'item_name' | 'region' | 'channel_type' | 'sales_source'
@@ -28,7 +29,7 @@ export const EX_CATEGORIES: Record<ExMode, string[]> = {
   base: ['운송비', '소모품', '서비스'],
   ext: ['운송비', '소모품', '서비스', 'a/s부품', '원자재'],
 }
-export const RETAIL4 = ['매장영업팀', '영업1팀', '영업기획팀', '화장품사업팀'] // 유통사업본부
+export const RETAIL = HQ.find(([h]) => h === '유통사업본부')![1] // 유통사업본부 소속 (lib/teams.ts)
 const DAIRY = ['와일드오차드 스트링치즈150g', '와일드오차드 유기농우유 900ml']
 
 export interface Cfg {
@@ -58,7 +59,7 @@ export const PRESETS: Preset[] = [
   { group: '부서', id: 'team-customer', name: '부서 거래처별 매출·원가', rows: ['customer_name'], col: 'measure' },
   { group: '부서', id: 'team-store', name: '부서별 영업점별 매출', rows: ['sales_team', 'item_category', 'customer_name'], ex: 'base', src: '국내', ch: '영업점', old: '조회5' },
   { group: '영업점', id: 'store', name: '영업점별 매출·원가', rows: ['customer_name', 'item_category'], ex: 'base', src: '국내', ch: '영업점', col: 'measure', old: '조회4' },
-  { group: '품목', id: 'retail-item', name: '유통사업본부 품목별 판매처', rows: ['sales_team', 'item_category', 'item_name', 'customer_name'], ex: 'base', src: '국내', teams: RETAIL4, old: '조회7' },
+  { group: '품목', id: 'retail-item', name: '유통사업본부 품목별 판매처', rows: ['sales_team', 'item_category', 'item_name', 'customer_name'], ex: 'base', src: '국내', teams: RETAIL, old: '조회7' },
   { group: '품목', id: 'dairy', name: '유제품', rows: ['item_name', 'customer_name'], items: DAIRY, measure: 'qty', old: '유제품' },
   { group: '권역', id: 'region-team', name: '권역별 부서 매출', rows: ['region', 'sales_team'] },
   { group: '권역', id: 'region-customer', name: '권역별 거래처 매출', rows: ['region', 'customer_name'] },
@@ -78,10 +79,17 @@ export function toParams(c: Cfg, from: string, to: string): PivotParams {
     to: to || null,
     exclude: c.ex === 'none' ? undefined : EX_CATEGORIES[c.ex],
     channel: c.ch === 'all' ? undefined : c.ch,
-    teams: c.teams.length ? c.teams : null,
+    teams: c.teams.length ? dbTeams(c.teams) : null, // 현재 부서 → DB의 옛 부서명까지
     items: c.items.length ? c.items : undefined,
     sources: c.src === 'all' ? undefined : [c.src],
   }
+}
+
+/** DB 결과의 옛 부서명을 현재 부서로 바꿈 (같은 경로는 buildTree에서 합쳐짐) */
+export function toCurrentTeams(rows: PivotRow[], fields: Field[]): PivotRow[] {
+  const i = fields.indexOf('sales_team')
+  if (i < 0) return rows
+  return rows.map(([keys, ...rest]) => [keys.map((k, j) => (j === i ? currentTeam(k) : k)), ...rest] as PivotRow)
 }
 
 // ---------- 트리 집계 ----------

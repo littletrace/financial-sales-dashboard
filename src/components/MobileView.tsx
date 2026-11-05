@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BarChart3, LogOut, Monitor, RefreshCw } from 'lucide-react'
 import { fmtCompact, fmtNumber, fmtPct, monthLabel, rate } from '../lib/format'
 import type { CustomerSummary, ItemSummary, TeamSummary } from '../App'
+import { ChatPanel } from './ChatPanel'
 
 const ALL = 'all'
 const FOLD = 5 // 품목·거래처는 5위까지 먼저 보여주고 '더 보기'로 펼침
@@ -22,6 +23,7 @@ interface Props {
   topCustomers: CustomerSummary[]
   onPcView: () => void
   onLogout: () => void
+  mergeNote: string | null // 고른 부서에 옛 부서 매출이 합쳐졌을 때 안내
 }
 
 type MTab = 'team' | 'item' | 'customer'
@@ -115,6 +117,8 @@ export function MobileView(p: Props) {
           : `${p.team === ALL ? '' : p.team + ' · '}매출액 상위 ${p.topCustomers.length}개 거래처`}
       </p>
 
+      {p.mergeNote && tab !== 'item' && <p className="merge-note">{p.mergeNote} (현재 부서로 합쳐 표시)</p>}
+
       {tab === 'team' ? (
         <div className="m-list">
           {[...p.teamSummary].sort((a, b) => b.supply - a.supply).map((t) => (
@@ -149,6 +153,7 @@ export function MobileView(p: Props) {
       )}
 
       <button className="m-pc" onClick={p.onPcView}><Monitor size={17} /> PC 대시보드 열기</button>
+      <ChatPanel />
     </div>
   )
 }

@@ -3,8 +3,8 @@ import { ChevronDown, ChevronRight, RefreshCw, Search, X } from 'lucide-react'
 import { getPivot, type PivotRow } from '../lib/supabase'
 import { fmtNumber, monthLabel } from '../lib/format'
 import {
-  COST_MEASURES, EX_CATEGORIES, FIELD_LABEL, MEASURE_LABEL, PRESETS, RETAIL4,
-  allParents, buildTree, flatten, presetCfg, toParams, value,
+  COST_MEASURES, EX_CATEGORIES, FIELD_LABEL, MEASURE_LABEL, PRESETS, RETAIL,
+  allParents, buildTree, toCurrentTeams, flatten, presetCfg, toParams, value,
   type Cfg, type Field, type Measure, type Node,
 } from '../lib/pivot'
 
@@ -27,8 +27,9 @@ function Seg<T extends string>({ value: v, options, onChange }: { value: T; opti
   )
 }
 
-export function PivotView({ months, teams, provMonths, itemNames, focus }: {
+export function PivotView({ months, teams, provMonths, itemNames, focus, merged }: {
   months: string[]; teams: string[]; provMonths: Set<string>; itemNames: string[]
+  merged: { month: string; from: string; to: string }[] // 현재 부서로 합쳐 보여주는 옛 부서 매출
   focus?: { teams: string[]; month: string | null } | null // 점유율 차트에서 부서 클릭으로 열 때
 }) {
   const [presetId, setPresetId] = useState(focus ? TEAM_CUSTOMER : CUSTOM)
@@ -64,7 +65,7 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
     setLoading(true)
     setError(null)
     getPivot(toParams(cfg, from, to))
-      .then((r) => alive && setRows(r))
+      .then((r) => alive && setRows(toCurrentTeams(r, cfg.rows)))
       .catch((e: Error) => alive && setError(e.message))
       .finally(() => alive && setLoading(false))
     return () => {
@@ -78,7 +79,17 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
   const byMeasure = cfg.col === 'measure'
   const cols: string[] = byMeasure ? (Object.keys(MEASURE_LABEL) as Measure[]) : monthCols
   const provInRange = monthCols.some((m) => provMonths.has(m))
-  const retail = sameSet(cfg.teams, RETAIL4)
+  const retail = sameSet(cfg.teams, RETAIL)
+  // 부서를 골랐고 그 기간에 옛 부서 매출이 합쳐져 있으면 안내
+  const mergeNote = useMemo(() => {
+    const hit = merged.filter((m) => cfg.teams.includes(m.to) && (!from || m.month >= from) && (!to || m.month <= to))
+    const by = new Map<string, string[]>()
+    for (const m of hit) by.set(`${m.to}|${m.from}`, [...(by.get(`${m.to}|${m.from}`) ?? []), m.month])
+    return [...by].map(([k, ms]) => {
+      const [cur, old] = k.split('|')
+      return `${cur} ${ms.sort().map(monthLabel).join('·')} 매출은 당시 ${old} 매출`
+    }).join(', ')
+  }, [merged, cfg.teams, from, to])
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase()
     return q ? itemNames.filter((n) => n.toLowerCase().includes(q) && !cfg.items.includes(n)).slice(0, 8) : []
@@ -202,8 +213,8 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
           <span className="lbl">부서</span>
           <div className="ctl chips">
             <button type="button" className={`chip small ${cfg.teams.length ? '' : 'active'}`} onClick={() => update({ teams: [] })}>전체</button>
-            <button type="button" className={`chip small group ${retail ? 'active' : ''}`} title={RETAIL4.join(', ')} onClick={() => update({ teams: [...RETAIL4] })}>
-              유통사업본부 (4개 팀)
+            <button type="button" className={`chip small group ${retail ? 'active' : ''}`} title={RETAIL.join(', ')} onClick={() => update({ teams: [...RETAIL] })}>
+              유통사업본부 ({RETAIL.length}개 팀)
             </button>
             {teams.map((t) => (
               <button key={t} type="button" className={`chip small ${!retail && cfg.teams.includes(t) ? 'active' : ''}`} onClick={() => toggleTeam(t)}>
@@ -312,6 +323,7 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
       </div>
 
       {error && <div className="alert glass">조회 실패: {error}</div>}
+      {mergeNote && <p className="merge-note">{mergeNote}입니다 (현재 부서로 합쳐 표시)</p>}
 
       <div className={`table-scroll pivot-scroll ${loading ? 'refreshing' : ''}`}>
         <table className="pivot-table">

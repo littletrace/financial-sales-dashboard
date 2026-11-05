@@ -1,6 +1,7 @@
 // 조회 탭 피벗 로직 점검: node scripts/check-pivot.ts
 import assert from 'node:assert/strict'
-import { PRESETS, buildTree, presetCfg, toParams, value } from '../src/lib/pivot.ts'
+import { PRESETS, buildTree, presetCfg, toCurrentTeams, toParams, value } from '../src/lib/pivot.ts'
+import { currentTeam, dbTeams, hqOf } from '../src/lib/teams.ts'
 import type { PivotRow } from '../src/lib/supabase.ts'
 
 const p = (id: string) => toParams(presetCfg(PRESETS.find((x) => x.id === id)), '2026-01', '2026-10')
@@ -12,11 +13,25 @@ assert.deepEqual(p('store'), {
   rows: ['customer_name', 'item_category'], from: '2026-01', to: '2026-10', exclude: ['운송비', '소모품', '서비스'],
   channel: '영업점', teams: null, items: undefined, sources: ['국내'],
 }) // 조회4
-assert.deepEqual(p('retail-item').teams, ['매장영업팀', '영업1팀', '영업기획팀', '화장품사업팀']) // 조회7
+assert.deepEqual(p('retail-item').teams?.slice().sort(), ['매장영업팀', '영업1팀', '영업2팀', '영업3팀', '영업기획팀', '유통사업팀', '온라인.구독영업팀', '해외영업팀', '화장품사업팀'].sort()) // 유통사업본부 + 옛 부서명
+
+// 부서 통합: 옛 부서 → 현재 부서, 조회 조건은 옛 부서까지 넓힘, 결과 행은 현재 부서로 합쳐짐
+assert.equal(currentTeam('유통사업팀'), '영업1팀')
+assert.equal(currentTeam('개미네사업본부'), '개미네')
+assert.equal(currentTeam('A/S팀'), 'A/S팀')
+assert.deepEqual(dbTeams(['영업2팀']), ['영업2팀', '화장품사업팀', '해외영업팀'])
+assert.deepEqual(dbTeams(['개미네']), ['개미네', '개미네사업본부'])
+assert.deepEqual([hqOf('영업3팀').hq, hqOf('개미네').hq, hqOf('A/S팀').hq], ['유통사업본부', '개미네사업본부', '기타'])
+{
+  const t2 = buildTree(toCurrentTeams([[['유통사업팀'], '2026-02', 1, 100, 60, 40, 100], [['영업1팀'], '2026-06', 1, 50, 30, 20, 50]], ['sales_team']), '')
+  assert.equal(t2.children.length, 1)
+  assert.equal(t2.children[0].label, '영업1팀')
+  assert.equal(t2.children[0].total.supply, 150)
+}
 assert.equal(p('dairy').items?.length, 2)
 // 점유율 차트 부서 클릭: 거래처 행 + 부서 필터, 비상품도 포함 (KPI 기준)
 assert.deepEqual(toParams({ ...presetCfg(PRESETS.find((x) => x.id === 'team-customer')), teams: ['영업1팀'] }, '2026-10', '2026-10'), {
-  rows: ['customer_name'], from: '2026-10', to: '2026-10', exclude: undefined, channel: undefined, teams: ['영업1팀'], items: undefined, sources: undefined,
+  rows: ['customer_name'], from: '2026-10', to: '2026-10', exclude: undefined, channel: undefined, teams: ['영업1팀', '유통사업팀'], items: undefined, sources: undefined,
 })
 // 기본값 = 전체 포함 (KPI 기준)
 assert.deepEqual(toParams(presetCfg(undefined), '', ''), {

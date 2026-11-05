@@ -6,6 +6,8 @@ export interface Column<T> {
   label: string
   align?: 'left' | 'right'
   render?: (row: T) => ReactNode
+  sortBy?: keyof T & string // 이 열을 누르면 이 값으로 정렬 (예: 본부 → 본부 순서)
+  group?: boolean // 이 열로 정렬 중이면 같은 값은 첫 줄에만 표시
 }
 
 interface Props<T> {
@@ -13,14 +15,16 @@ interface Props<T> {
   columns: Column<T>[]
   searchKeys: (keyof T & string)[]
   defaultSort: keyof T & string
+  defaultAsc?: boolean
+  thenBy?: keyof T & string // 같은 값끼리는 이 값 큰 순
   rank?: boolean
   note?: string
 }
 
-export function DataTable<T extends object>({ rows, columns, searchKeys, defaultSort, rank, note }: Props<T>) {
+export function DataTable<T extends object>({ rows, columns, searchKeys, defaultSort, defaultAsc, thenBy, rank, note }: Props<T>) {
   const [query, setQuery] = useState('')
   const [sortKey, setSortKey] = useState<keyof T & string>(defaultSort)
-  const [desc, setDesc] = useState(true)
+  const [desc, setDesc] = useState(!defaultAsc)
 
   // 열 순서: 헤더를 끌어 옮기면 바뀌고, 이 브라우저에 기억한다 (열 구성이 같은 표끼리 같은 키)
   const orderKey = 'col-order:' + columns.map((c) => c.key).join(',')
@@ -55,16 +59,16 @@ export function DataTable<T extends object>({ rows, columns, searchKeys, default
     const filtered = q
       ? rows.filter((r) => searchKeys.some((k) => String(r[k] ?? '').toLowerCase().includes(q)))
       : rows
+    const by = columns.find((c) => c.key === sortKey)?.sortBy ?? sortKey
+    const cmp = (x: unknown, y: unknown) =>
+      typeof x === 'number' || typeof y === 'number'
+        ? (typeof x === 'number' ? x : -Infinity) - (typeof y === 'number' ? y : -Infinity)
+        : String(x ?? '').localeCompare(String(y ?? ''), 'ko')
     return [...filtered].sort((a, b) => {
-      const x = a[sortKey]
-      const y = b[sortKey]
-      const cmp =
-        typeof x === 'number' || typeof y === 'number'
-          ? (typeof x === 'number' ? x : -Infinity) - (typeof y === 'number' ? y : -Infinity)
-          : String(x ?? '').localeCompare(String(y ?? ''), 'ko')
-      return desc ? -cmp : cmp
+      const c = cmp(a[by], b[by])
+      return (desc ? -c : c) || (thenBy ? -cmp(a[thenBy], b[thenBy]) : 0)
     })
-  }, [rows, query, sortKey, desc, searchKeys])
+  }, [rows, query, sortKey, desc, searchKeys, columns, thenBy])
 
   function toggle(key: keyof T & string) {
     if (key === sortKey) setDesc(!desc)
@@ -131,16 +135,21 @@ export function DataTable<T extends object>({ rows, columns, searchKeys, default
             </tr>
           </thead>
           <tbody>
-            {view.map((row, i) => (
-              <tr key={i}>
+            {view.map((row, i) => {
+              // 묶음 열로 정렬 중이면 같은 값은 첫 줄에만 쓰고, 묶음이 바뀌는 줄에 구분선
+              const g = cols.find((c) => c.group && c.key === sortKey)
+              const same = g && i > 0 && view[i - 1][g.key] === row[g.key]
+              return (
+              <tr key={i} className={g && i > 0 && !same ? 'group-start' : undefined}>
                 {rank && <td className="rank">{i + 1}</td>}
                 {cols.map((c) => (
                   <td key={c.key} className={c.align === 'right' ? 'num' : ''}>
-                    {c.render ? c.render(row) : String(row[c.key] ?? '')}
+                    {same && c === g ? null : c.render ? c.render(row) : String(row[c.key] ?? '')}
                   </td>
                 ))}
               </tr>
-            ))}
+              )
+            })}
             {view.length === 0 && (
               <tr>
                 <td colSpan={columns.length + (rank ? 1 : 0)} className="empty">

@@ -308,6 +308,13 @@ span.prov { padding: 2px 4px; border-radius: 6px; }
 .login-card label { display: grid; gap: 4px; font-size: 0.85rem; }
 .login-card .btn { height: 40px; justify-content: center; }
 
+/* 부서 통합 안내 (옛 부서 매출을 현재 부서로 합쳐 보여줄 때) */
+.merge-note {
+  margin: 0 0 12px; padding: 8px 12px; border-radius: 10px; font-size: 0.84rem; line-height: 1.5;
+  background: #f5f6fb; border: 1px dashed #d6dcf7; color: #3d4570;
+}
+tr.group-start td { border-top: 1px solid var(--line); }
+
 /* ---------- AI 질문 (ChatPanel) ---------- */
 .chat-fab {
   position: fixed; right: 20px; bottom: 20px; z-index: 50; width: 52px; height: 52px; border: 0; border-radius: 50%;
@@ -340,7 +347,7 @@ span.prov { padding: 2px 4px; border-radius: 6px; }
 }
 
 /* ---------- 모바일 화면 (MobileView, 640px 이하) ---------- */
-.m-app { display: flex; flex-direction: column; gap: 14px; padding: 0 16px 32px; max-width: 640px; margin: 0 auto; }
+.m-app { display: flex; flex-direction: column; gap: 14px; padding: 0 16px 88px; max-width: 640px; margin: 0 auto; }
 .m-top { display: flex; align-items: center; justify-content: space-between; height: 56px; }
 .m-top .brand { gap: 8px; }
 .m-top h1 { font-size: 1.06rem; }

@@ -45,6 +45,7 @@ import { PivotView } from './components/PivotView'
 import { RunButton } from './components/RunButton'
 import { ChatPanel } from './components/ChatPanel'
 import { MobileView } from './components/MobileView'
+import { TEAM_MERGE, currentTeam, hqOf } from './lib/teams'
 
 // 휴대폰 화면 폭이면 모바일 화면(B안)으로
 const NARROW = '(max-width: 640px)'
@@ -55,6 +56,7 @@ const subscribeNarrow = (cb: () => void) => {
 }
 
 interface Dataset {
+  merged: { month: string; from: string; to: string }[] // 현재 부서로 합쳐 보여주는 옛 부서 매출 (안내 문구용)
   team: TeamSalesRow[]
   item: ItemSalesRow[]
   customer: CustomerSalesRow[]
@@ -79,6 +81,8 @@ interface Totals {
 }
 
 export interface TeamSummary extends Totals {
+  hq: string // 본부 (lib/teams.ts)
+  hq_rank: number
   sales_team: string
   rate: number | null
   target: number | null // 매출목표 (실적이 있는 월만 합산)
@@ -182,7 +186,11 @@ export default function App() {
         getPlMonthly(),
         getLastLoadedAt(),
       ])
-      setData({ team: teamRows, item, customer, targets, pl })
+      // 부서는 화면에서만 현재 부서로 합침 (DB는 그 달 부서명 그대로)
+      const cur = <T extends { sales_team: string }>(rows: T[]) => rows.map((x) => ({ ...x, sales_team: currentTeam(x.sales_team) }))
+      const merged = teamRows.filter((x) => TEAM_MERGE[x.sales_team] && x.total_supply_amount !== 0)
+        .map((x) => ({ month: x.sales_month, from: x.sales_team, to: TEAM_MERGE[x.sales_team] }))
+      setData({ merged, team: cur(teamRows), item, customer: cur(customer), targets: cur(targets), pl })
       setLoadedAt(lastLoaded)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -260,8 +268,9 @@ export default function App() {
     return [...groupBy(rows, (r) => r.sales_team)].map(([name, list]) => {
       const t = sum(list)
       const target = targetOf.get(name) ?? null
+      const { hq, rank } = hqOf(name)
       return {
-        sales_team: name, ...t, rate: rate(t.profit, t.costedSupply),
+        hq, hq_rank: rank, sales_team: name, ...t, rate: rate(t.profit, t.costedSupply),
         target, achieve: target ? (t.supply / target) * 100 : null,
       }
     })
@@ -343,6 +352,13 @@ export default function App() {
       : [{ label: '총 수량', value: fmtNumber(kpi.qty), sub: '판매수량 합계', prov: false }]),
   ]
 
+  const mergeNote = useMemo(() => {
+    if (team === ALL) return null
+    const byFrom = groupBy(data?.merged.filter((m) => m.to === team && inMonth({ sales_month: m.month })) ?? [], (m) => m.from)
+    if (!byFrom.size) return null
+    return [...byFrom].map(([from, list]) => `${list.map((m) => m.month).sort().map(monthLabel).join('·')} 매출은 당시 ${from} 매출`).join(', ')
+  }, [data, team, inMonth])
+
   const periodLabel = month === ALL ? '전체 기간' : `${month.slice(0, 4)}년 ${monthLabel(month)}`
 
   if (narrow && !pcView)
@@ -352,6 +368,7 @@ export default function App() {
         months={months} month={month} setMonth={setMonth} teams={teams} team={team} setTeam={setTeam}
         kpi={kpi} teamSummary={teamSummary} topItems={topItems} topCustomers={topCustomers}
         onPcView={() => { setPcView(true); scrollTo(0, 0) }} onLogout={() => supabase.auth.signOut()}
+        mergeNote={mergeNote && `${team} ${mergeNote}입니다`}
       />
     )
 
@@ -642,9 +659,11 @@ export default function App() {
                 <TableIcon size={15} /> 조회
               </button>
             </nav>
+            {mergeNote && (tab === 'team' || tab === 'customer') && <p className="merge-note">{team} {mergeNote}입니다 (현재 부서로 합쳐 표시)</p>}
             <div className="tab-body" key={tab}>
               {tab === 'team' && (
-                <DataTable rows={teamSummary} columns={teamColumns(team)} searchKeys={['sales_team']} defaultSort="supply" />
+                // 기본: 본부순 → 매출목표 큰 순
+                <DataTable rows={teamSummary} columns={teamColumns(team)} searchKeys={['hq', 'sales_team']} defaultSort="hq" defaultAsc thenBy="target" />
               )}
               {tab === 'item' && (
                 <DataTable
@@ -658,6 +677,7 @@ export default function App() {
               )}
               {tab === 'pivot' && <PivotView
                   key={pivotFocus?.key ?? 0}
+                  merged={data?.merged ?? []}
                   focus={pivotFocus && { teams: pivotFocus.teams, month: month === ALL ? null : month }}
                   months={pivotMonths} teams={pivotTeams} provMonths={provMonths} itemNames={pivotItems} />}
               {tab === 'customer' && (
@@ -689,6 +709,7 @@ const pct = <T extends { rate: number | null }>(r: T) => (
 
 function teamColumns(selected: string): Column<TeamSummary>[] {
   return [
+    { key: 'hq', label: '본부', sortBy: 'hq_rank', group: true, render: (r) => <b>{r.hq}</b> },
     {
       key: 'sales_team',
       label: '부서',
