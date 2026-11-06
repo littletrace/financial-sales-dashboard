@@ -393,3 +393,43 @@ tr.group-start td { border-top: 1px solid var(--line); }
 .m-more, .m-pc { height: 48px; border-radius: 12px; font: inherit; font-size: 0.9rem; cursor: pointer; }
 .m-more { border: 1px solid var(--line); background: var(--surface); color: #4e5968; }
 .m-pc { border: 0; background: var(--accent); color: #fff; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+/* ---------- 왼쪽 메뉴 (Root) ---------- */
+.shell { display: flex; min-height: 100vh; }
+.side {
+  width: 200px; flex: none; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  background: #111827; color: #cbd5e1; padding: 20px 0;
+}
+.side-title { color: #fff; font-weight: 700; font-size: 0.95rem; margin: 0 18px 18px; }
+.side-group { font-size: 0.72rem; color: #64748b; margin: 14px 18px 4px; }
+.side-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 0;
+  border-left: 3px solid transparent; color: inherit; padding: 10px 15px; font-size: 0.9rem; cursor: pointer;
+}
+.side-item:hover { color: #fff; }
+.side-item.active { background: #1f2937; color: #fff; border-left-color: var(--accent); }
+.shell-main { flex: 1; min-width: 0; }
+.shell-main > div > .app, .shell-main > .app { margin: 0; }
+
+/* ---------- 재고 화면 ---------- */
+.kpis-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.barlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; font-size: 0.85rem; }
+.barlist li { display: grid; grid-template-columns: 90px minmax(0, 1fr) 150px; align-items: center; gap: 10px; }
+.barlist-track { height: 20px; border-radius: 6px; background: var(--field); overflow: hidden; }
+.barlist-fill { display: block; height: 100%; border-radius: 6px; }
+.barlist-value { text-align: right; font-variant-numeric: tabular-nums; }
+.stock-filters { margin-bottom: 12px; }
+.stock-filters .field { height: 34px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); color: var(--text); }
+.stock-filters .check { display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer; }
+.stock-filters .push-right { margin-left: auto; }
+.chip:disabled { opacity: 0.4; cursor: not-allowed; }
+.chip.active:disabled { opacity: 1; }
+.chip-sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+.table-note { margin: 10px 2px 0; }
+.tag { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 0.75rem; font-weight: 600; }
+.tag-red { background: #fee2e2; color: #dc2626; }
+.tag-org { background: #ffedd5; color: #ea580c; }
+.tag-yel { background: #fef9c3; color: #ca8a04; }
+.tag-grn { background: #dcfce7; color: #16a34a; }
+.tag-gray { background: #f1f5f9; color: #475569; }
+@media (max-width: 1200px) { .kpis-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
