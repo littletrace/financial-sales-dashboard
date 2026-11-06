@@ -181,3 +181,45 @@ export async function getPivot(p: PivotParams): Promise<PivotRow[]> {
   if (error) throw new Error(`[pivot_sales] ${error.message}`)
   return (data ?? []) as PivotRow[]
 }
+
+// ---------- 재고: 장기재고 · 유통기한 (finance-db-loader py/load_stock.py 가 매번 전체 교체) ----------
+export interface LongStockRow {
+  snapshot_date: string
+  item_category: string | null
+  item_name: string
+  item_code: string | null
+  stock_qty: number
+  last_in_date: string | null
+  last_out_date: string | null
+  no_out: boolean // 출고 이력 없음 → 미출고일수는 입고 후 경과일
+  idle_days: number | null
+  stock_amount: number | null // 최근 재고단가 × 수량 (단가 없으면 null)
+}
+
+export interface ExpiryLotRow {
+  snapshot_date: string
+  item_code: string
+  erp_code: string | null
+  item_name: string
+  expiry_date: string
+  qty: number
+  shelf_months: number | null
+  days_left: number // 오늘(한국시간) 기준
+  remain_rate: number | null // 남은 일수 ÷ 유통기간
+  amount: number | null
+  long_idle_days: number | null // 장기재고면 미출고일수, 아니면 null
+}
+
+const nums = <T,>(keys: string[]) => (r: T) => {
+  const o = { ...r } as Record<string, unknown>
+  for (const k of keys) if (o[k] !== null && o[k] !== undefined) o[k] = Number(o[k])
+  return o as T
+}
+
+export const getLongStock = async () =>
+  (await fetchAll<LongStockRow>('v_long_stock', ['item_code', 'item_name', 'last_in_date', 'stock_qty']))
+    .map(nums<LongStockRow>(['stock_qty', 'idle_days', 'stock_amount']))
+
+export const getExpiryLots = async () =>
+  (await fetchAll<ExpiryLotRow>('v_expiry_lot', ['item_code', 'expiry_date', 'qty']))
+    .map(nums<ExpiryLotRow>(['qty', 'shelf_months', 'days_left', 'remain_rate', 'amount', 'long_idle_days']))

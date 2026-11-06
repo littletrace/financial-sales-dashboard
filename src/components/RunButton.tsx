@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Play } from 'lucide-react'
 
 // api/run.ts 의 REPORTS 와 같은 순서
-const REPORTS = ['거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)']
+const REPORTS = ['거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)', '장기재고조회']
 interface Run { status: string; conclusion: string | null; createdAt: string }
 
 /** 영림원 다운로드 → DB 적재 실행 버튼. 실행 성공으로 끝나면 onDone(데이터 새로고침) 호출 */

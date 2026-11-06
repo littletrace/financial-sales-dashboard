@@ -12,10 +12,10 @@ globalThis.fetch = (async (url: string, init?: RequestInit) => {
 const { POST } = await import('../api/run.ts')
 const post = (b: object) => POST(new Request('http://x/api/run', { method: 'POST', body: JSON.stringify(b) }))
 
-const ALL4 = ['거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)']
-assert.equal((await post({ password: 'wrong', reports: ALL4 })).status, 401)
-assert.equal((await post({ reports: ALL4 })).status, 401)
-assert.equal((await post({ password: 'pw', reports: ALL4, month: '2026-13' })).status, 400)
+const ALL5 = ['거래명세서품목조회', '수출매출품목조회', '재고금액상세조회', '손익계산서(월별)', '장기재고조회']
+assert.equal((await post({ password: 'wrong', reports: ALL5 })).status, 401)
+assert.equal((await post({ reports: ALL5 })).status, 401)
+assert.equal((await post({ password: 'pw', reports: ALL5, month: '2026-13' })).status, 400)
 assert.equal((await post({ password: 'pw', reports: ['없는화면'] })).status, 400)
 assert.equal((await post({ password: 'pw', reports: ['수출매출품목조회', '없는화면'] })).status, 400, '섞여 있어도 거부')
 assert.equal((await post({ password: 'pw', reports: [] })).status, 400)
@@ -27,9 +27,9 @@ assert.match(calls[0].url, /finance-db-loader\/actions\/workflows\/erp\.yml\/dis
 assert.deepEqual(JSON.parse(calls[0].body!), {
   ref: 'main', inputs: { month: '2026-09', report: '수출매출품목조회,손익계산서(월별)', load: true }, // 화면 순서대로
 })
-assert.equal((await post({ password: 'pw', reports: ALL4 })).status, 200)
+assert.equal((await post({ password: 'pw', reports: ALL5 })).status, 200)
 assert.equal(JSON.parse(calls[1].body!).inputs.report, '전부', '모두 고르면 전부')
 
 delete process.env.RUN_PASSWORD
-assert.equal((await post({ password: '', reports: ALL4 })).status, 401, '비밀번호 미설정이면 항상 거부')
+assert.equal((await post({ password: '', reports: ALL5 })).status, 401, '비밀번호 미설정이면 항상 거부')
 console.log('ok')
