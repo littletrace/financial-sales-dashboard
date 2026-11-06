@@ -11,7 +11,9 @@ const ALL = -1
 export function LongStockPage() {
   const [rows, setRows] = useState<LongStockRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [goodsOnly, setGoodsOnly] = useState(true) // 기본 상품만. 카드·그래프·표 모두 이 기준
+  const [goodsOnly, setGoodsOnly] = useState(true) // 카드·구간 그래프 기준 (상품 / 전체)
+  const [cat, setCat] = useState('상품') // 표 분류 필터. 토글을 바꾸면 같은 값으로 맞춤
+  const toggle = (goods: boolean) => { setGoodsOnly(goods); setCat(goods ? '상품' : '') }
   const [bucket, setBucket] = useState(ALL)
   const [noOut, setNoOut] = useState(false)
 
@@ -33,8 +35,9 @@ export function LongStockPage() {
     return [...m].map(([label, rs]) => ({ label, color: '#3182f6', value: amt(rs), count: rs.length })).sort((a, b) => b.value - a.value)
   }, [rows])
   const view = useMemo(
-    () => all.filter((r) => (bucket === ALL || bucketOf(r.idle_days) === bucket) && (!noOut || r.no_out)),
-    [all, bucket, noOut],
+    () => (rows ?? []).filter((r) => (!cat || (r.item_category ?? '(없음)') === cat)
+      && (bucket === ALL || bucketOf(r.idle_days) === bucket) && (!noOut || r.no_out)),
+    [rows, cat, bucket, noOut],
   )
 
   const total = amt(all)
@@ -61,10 +64,8 @@ export function LongStockPage() {
           </div>
         </div>
         <div className="chips stock-filters">
-          <select className="field" value={goodsOnly ? 'goods' : 'all'} onChange={(e) => setGoodsOnly(e.target.value === 'goods')} aria-label="품목자산분류">
-            <option value="goods">상품</option>
-            <option value="all">분류 전체</option>
-          </select>
+          <button className={goodsOnly ? 'chip active' : 'chip'} aria-pressed={goodsOnly} onClick={() => toggle(true)}>상품</button>
+          <button className={!goodsOnly ? 'chip active' : 'chip'} aria-pressed={!goodsOnly} onClick={() => toggle(false)}>전체</button>
           <button className="btn" onClick={load}><RefreshCw size={15} /><span>새로고침</span></button>
         </div>
       </header>
@@ -94,6 +95,10 @@ export function LongStockPage() {
           </section>
           <section className="card glass">
             <div className="chips stock-filters">
+              <select className="field" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="표 분류 필터">
+                <option value="">분류 전체</option>
+                {byCat.map((c) => <option key={c.label}>{c.label}</option>)}
+              </select>
               {[{ label: '전체', i: ALL }, ...BUCKETS.map((b, i) => ({ label: b.label, i }))].map(({ label, i }) => (
                 <button key={label} className={bucket === i ? 'chip active' : 'chip'} onClick={() => setBucket(i)}>{label}</button>
               ))}
