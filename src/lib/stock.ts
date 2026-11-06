@@ -22,9 +22,6 @@ export function expiryStatus(daysLeft: number) {
   return { label: '정상', tag: 'tag-grn' }
 }
 
-/** 폐기위험 = 장기재고이면서 유통기한 180일 이내 */
-export const isRisk = (r: { long_idle_days: number | null; days_left: number }) => r.long_idle_days !== null && r.days_left <= 180
-
 /** 표를 CSV(엑셀용 BOM 포함)로 내려받기 */
 export function downloadCsv(name: string, head: string[], rows: (string | number | null)[][]) {
   const esc = (v: string | number | null) => (v === null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v))
