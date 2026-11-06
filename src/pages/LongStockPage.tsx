@@ -11,7 +11,7 @@ const ALL = -1
 export function LongStockPage() {
   const [rows, setRows] = useState<LongStockRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [cat, setCat] = useState('')
+  const [cat, setCat] = useState('상품') // 기본은 상품만. '분류 전체'로 바꿀 수 있음
   const [bucket, setBucket] = useState(ALL)
   const [noOut, setNoOut] = useState(false)
 
