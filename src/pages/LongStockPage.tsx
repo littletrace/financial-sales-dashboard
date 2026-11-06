@@ -11,7 +11,7 @@ const ALL = -1
 export function LongStockPage() {
   const [rows, setRows] = useState<LongStockRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [cat, setCat] = useState('')
+  const [goodsOnly, setGoodsOnly] = useState(true) // 기본 상품만. 카드·그래프·표 모두 이 기준
   const [bucket, setBucket] = useState(ALL)
   const [noOut, setNoOut] = useState(false)
 
@@ -21,7 +21,7 @@ export function LongStockPage() {
   }
   useEffect(load, [])
 
-  const all = useMemo(() => rows ?? [], [rows])
+  const all = useMemo(() => (rows ?? []).filter((r) => !goodsOnly || r.item_category === '상품'), [rows, goodsOnly])
   const amt = (rs: LongStockRow[]) => rs.reduce((s, r) => s + (r.stock_amount ?? 0), 0)
   const byBucket = useMemo(
     () => BUCKETS.map((b, i) => { const rs = all.filter((r) => bucketOf(r.idle_days) === i); return { label: b.label, color: b.color, value: amt(rs), count: rs.length } }),
@@ -29,21 +29,23 @@ export function LongStockPage() {
   )
   const byCat = useMemo(() => {
     const m = new Map<string, LongStockRow[]>()
-    for (const r of all) m.set(r.item_category ?? '(없음)', [...(m.get(r.item_category ?? '(없음)') ?? []), r])
+    for (const r of rows ?? []) m.set(r.item_category ?? '(없음)', [...(m.get(r.item_category ?? '(없음)') ?? []), r])
     return [...m].map(([label, rs]) => ({ label, color: '#3182f6', value: amt(rs), count: rs.length })).sort((a, b) => b.value - a.value)
-  }, [all])
+  }, [rows])
   const view = useMemo(
-    () => all.filter((r) => (!cat || (r.item_category ?? '(없음)') === cat) && (bucket === ALL || bucketOf(r.idle_days) === bucket) && (!noOut || r.no_out)),
-    [all, cat, bucket, noOut],
+    () => all.filter((r) => (bucket === ALL || bucketOf(r.idle_days) === bucket) && (!noOut || r.no_out)),
+    [all, bucket, noOut],
   )
 
+  const total = amt(all)
+  const top10 = all.map((r) => r.stock_amount ?? 0).sort((a, b) => b - a).slice(0, 10).reduce((s, v) => s + v, 0)
   const old = byBucket[2].count + byBucket[3].count
   const noOutRows = all.filter((r) => r.no_out)
   const kpis = [
     { label: '장기재고 금액', value: `${fmtCompact(amt(all))}원`, sub: `${all.length.toLocaleString()} 품목` },
     { label: '1년 이상 미출고', value: `${fmtCompact(byBucket[2].value + byBucket[3].value)}원`, sub: `${old.toLocaleString()} 품목` },
     { label: '출고 이력 없음', value: `${noOutRows.length.toLocaleString()} 품목`, sub: `${fmtCompact(amt(noOutRows))}원` },
-    { label: '금액 1위 분류', value: byCat[0]?.label ?? '-', sub: byCat[0] ? `${fmtCompact(byCat[0].value)}원` : '' },
+    { label: '상위 10품목 금액 비중', value: total ? `${Math.round((top10 / total) * 100)}%` : '-', sub: `${fmtCompact(top10)}원 / ${fmtCompact(total)}원` },
   ]
 
   return (
@@ -58,7 +60,13 @@ export function LongStockPage() {
             </p>
           </div>
         </div>
-        <button className="btn" onClick={load}><RefreshCw size={15} /><span>새로고침</span></button>
+        <div className="chips stock-filters">
+          <select className="field" value={goodsOnly ? 'goods' : 'all'} onChange={(e) => setGoodsOnly(e.target.value === 'goods')} aria-label="품목자산분류">
+            <option value="goods">상품</option>
+            <option value="all">분류 전체</option>
+          </select>
+          <button className="btn" onClick={load}><RefreshCw size={15} /><span>새로고침</span></button>
+        </div>
       </header>
       {error && <div className="alert glass">데이터를 불러오지 못했습니다: {error}</div>}
       {!rows && !error ? (
@@ -86,10 +94,6 @@ export function LongStockPage() {
           </section>
           <section className="card glass">
             <div className="chips stock-filters">
-              <select className="field" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="품목자산분류">
-                <option value="">분류 전체</option>
-                {byCat.map((c) => <option key={c.label}>{c.label}</option>)}
-              </select>
               {[{ label: '전체', i: ALL }, ...BUCKETS.map((b, i) => ({ label: b.label, i }))].map(({ label, i }) => (
                 <button key={label} className={bucket === i ? 'chip active' : 'chip'} onClick={() => setBucket(i)}>{label}</button>
               ))}
