@@ -88,7 +88,7 @@ export function LongStockPage() {
               <BarList items={byBucket} />
             </div>
             <div className="card glass">
-              <div className="card-head"><h2>품목자산분류별 금액 <span className="muted small">(항상 전체 분류)</span></h2></div>
+              <div className="card-head"><h2>품목자산분류별 금액</h2></div>
               <BarList items={byCat} />
             </div>
           </section>
