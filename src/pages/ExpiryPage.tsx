@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { getExpiryLots, type ExpiryLotRow } from '../lib/supabase'
 import { fmtNumber } from '../lib/format'
-import { expiryStatus, isRisk } from '../lib/stock'
+import { expiryStatus } from '../lib/stock'
 import { DataTable, type Column } from '../components/DataTable'
 
 const DAYS = [
@@ -16,7 +16,6 @@ export function ExpiryPage() {
   const [rows, setRows] = useState<ExpiryLotRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [days, setDays] = useState(90)
-  const [risk, setRisk] = useState(false) // 폐기위험: 기간은 '전체 기간'으로 고정
 
   const load = () => {
     setError(null)
@@ -25,15 +24,13 @@ export function ExpiryPage() {
   useEffect(load, [])
 
   const all = useMemo(() => rows ?? [], [rows])
-  const limit = risk ? Infinity : days
-  const view = useMemo(() => all.filter((r) => r.days_left <= limit && (!risk || isRisk(r))), [all, limit, risk])
+  const view = useMemo(() => all.filter((r) => r.days_left <= days), [all, days])
   const within = (d: number) => all.filter((r) => r.days_left <= d).length
   const kpis = [
     { label: '지난 lot', value: all.filter((r) => r.days_left < 0).length },
     { label: '30일 이내', value: within(30) },
     { label: '90일 이내', value: within(90) },
     { label: '180일 이내', value: within(180) },
-    { label: '폐기위험', value: all.filter(isRisk).length },
   ]
 
   return (
@@ -67,15 +64,12 @@ export function ExpiryPage() {
             <div className="chips stock-filters">
               <span className="muted small">유통기한 ~</span>
               {DAYS.map(({ label, d }) => (
-                <button key={label} className={limit === d ? 'chip active' : 'chip'} disabled={risk} onClick={() => setDays(d)}>{label}</button>
+                <button key={label} className={days === d ? 'chip active' : 'chip'} onClick={() => setDays(d)}>{label}</button>
               ))}
-              <span className="chip-sep" />
-              <button className={risk ? 'chip active' : 'chip'} aria-pressed={risk} onClick={() => setRisk((v) => !v)}>폐기위험</button>
             </div>
             <DataTable rows={view} columns={columns} searchKeys={['item_name', 'item_code']} defaultSort="days_left" defaultAsc />
             <p className="muted small table-note">
-              상태: 지남 · 30일 이내 임박 · 90일 이내 주의 · 180일 이내 관찰. <b>폐기위험</b>을 켜면 장기재고(미출고 90일 초과)이면서
-              유통기한 180일 이내인 lot만 보이고 기간은 '전체 기간'으로 고정됩니다. 잔여율 = 남은 일수 ÷ 유통기간(개월 × 30.4일).
+              상태: 지남 · 30일 이내 임박 · 90일 이내 주의 · 180일 이내 관찰. 장기재고 미출고일수는 장기재고 목록에 있는 품목만 표시. 잔여율 = 남은 일수 ÷ 유통기간(개월 × 30.4일).
             </p>
           </section>
         </main>

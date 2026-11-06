@@ -422,9 +422,6 @@ tr.group-start td { border-top: 1px solid var(--line); }
 .stock-filters .field { height: 34px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); color: var(--text); }
 .stock-filters .check { display: inline-flex; align-items: center; gap: 5px; font-size: 0.85rem; cursor: pointer; }
 .stock-filters .push-right { margin-left: auto; }
-.chip:disabled { opacity: 0.4; cursor: not-allowed; }
-.chip.active:disabled { opacity: 1; }
-.chip-sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
 .table-note { margin: 10px 2px 0; }
 .tag { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 0.75rem; font-weight: 600; }
 .tag-red { background: #fee2e2; color: #dc2626; }
