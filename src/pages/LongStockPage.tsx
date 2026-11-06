@@ -11,7 +11,7 @@ const ALL = -1
 export function LongStockPage() {
   const [rows, setRows] = useState<LongStockRow[] | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [cat, setCat] = useState('상품') // 기본은 상품만. '분류 전체'로 바꿀 수 있음
+  const [goodsOnly, setGoodsOnly] = useState(true) // 기본 상품만. 카드·그래프·표 모두 이 기준
   const [bucket, setBucket] = useState(ALL)
   const [noOut, setNoOut] = useState(false)
 
@@ -21,7 +21,7 @@ export function LongStockPage() {
   }
   useEffect(load, [])
 
-  const all = useMemo(() => rows ?? [], [rows])
+  const all = useMemo(() => (rows ?? []).filter((r) => !goodsOnly || r.item_category === '상품'), [rows, goodsOnly])
   const amt = (rs: LongStockRow[]) => rs.reduce((s, r) => s + (r.stock_amount ?? 0), 0)
   const byBucket = useMemo(
     () => BUCKETS.map((b, i) => { const rs = all.filter((r) => bucketOf(r.idle_days) === i); return { label: b.label, color: b.color, value: amt(rs), count: rs.length } }),
@@ -33,8 +33,8 @@ export function LongStockPage() {
     return [...m].map(([label, rs]) => ({ label, color: '#3182f6', value: amt(rs), count: rs.length })).sort((a, b) => b.value - a.value)
   }, [all])
   const view = useMemo(
-    () => all.filter((r) => (!cat || (r.item_category ?? '(없음)') === cat) && (bucket === ALL || bucketOf(r.idle_days) === bucket) && (!noOut || r.no_out)),
-    [all, cat, bucket, noOut],
+    () => all.filter((r) => (bucket === ALL || bucketOf(r.idle_days) === bucket) && (!noOut || r.no_out)),
+    [all, bucket, noOut],
   )
 
   const old = byBucket[2].count + byBucket[3].count
@@ -58,7 +58,13 @@ export function LongStockPage() {
             </p>
           </div>
         </div>
-        <button className="btn" onClick={load}><RefreshCw size={15} /><span>새로고침</span></button>
+        <div className="chips stock-filters">
+          <select className="field" value={goodsOnly ? 'goods' : 'all'} onChange={(e) => setGoodsOnly(e.target.value === 'goods')} aria-label="품목자산분류">
+            <option value="goods">상품</option>
+            <option value="all">분류 전체</option>
+          </select>
+          <button className="btn" onClick={load}><RefreshCw size={15} /><span>새로고침</span></button>
+        </div>
       </header>
       {error && <div className="alert glass">데이터를 불러오지 못했습니다: {error}</div>}
       {!rows && !error ? (
@@ -86,10 +92,6 @@ export function LongStockPage() {
           </section>
           <section className="card glass">
             <div className="chips stock-filters">
-              <select className="field" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="품목자산분류">
-                <option value="">분류 전체</option>
-                {byCat.map((c) => <option key={c.label}>{c.label}</option>)}
-              </select>
               {[{ label: '전체', i: ALL }, ...BUCKETS.map((b, i) => ({ label: b.label, i }))].map(({ label, i }) => (
                 <button key={label} className={bucket === i ? 'chip active' : 'chip'} onClick={() => setBucket(i)}>{label}</button>
               ))}
