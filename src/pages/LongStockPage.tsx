@@ -29,21 +29,23 @@ export function LongStockPage() {
   )
   const byCat = useMemo(() => {
     const m = new Map<string, LongStockRow[]>()
-    for (const r of all) m.set(r.item_category ?? '(없음)', [...(m.get(r.item_category ?? '(없음)') ?? []), r])
+    for (const r of rows ?? []) m.set(r.item_category ?? '(없음)', [...(m.get(r.item_category ?? '(없음)') ?? []), r])
     return [...m].map(([label, rs]) => ({ label, color: '#3182f6', value: amt(rs), count: rs.length })).sort((a, b) => b.value - a.value)
-  }, [all])
+  }, [rows])
   const view = useMemo(
     () => all.filter((r) => (bucket === ALL || bucketOf(r.idle_days) === bucket) && (!noOut || r.no_out)),
     [all, bucket, noOut],
   )
 
+  const total = amt(all)
+  const top10 = all.map((r) => r.stock_amount ?? 0).sort((a, b) => b - a).slice(0, 10).reduce((s, v) => s + v, 0)
   const old = byBucket[2].count + byBucket[3].count
   const noOutRows = all.filter((r) => r.no_out)
   const kpis = [
     { label: '장기재고 금액', value: `${fmtCompact(amt(all))}원`, sub: `${all.length.toLocaleString()} 품목` },
     { label: '1년 이상 미출고', value: `${fmtCompact(byBucket[2].value + byBucket[3].value)}원`, sub: `${old.toLocaleString()} 품목` },
     { label: '출고 이력 없음', value: `${noOutRows.length.toLocaleString()} 품목`, sub: `${fmtCompact(amt(noOutRows))}원` },
-    { label: '금액 1위 분류', value: byCat[0]?.label ?? '-', sub: byCat[0] ? `${fmtCompact(byCat[0].value)}원` : '' },
+    { label: '상위 10품목 금액 비중', value: total ? `${Math.round((top10 / total) * 100)}%` : '-', sub: `${fmtCompact(top10)}원 / ${fmtCompact(total)}원` },
   ]
 
   return (
@@ -86,7 +88,7 @@ export function LongStockPage() {
               <BarList items={byBucket} />
             </div>
             <div className="card glass">
-              <div className="card-head"><h2>품목자산분류별 금액</h2></div>
+              <div className="card-head"><h2>품목자산분류별 금액 <span className="muted small">(항상 전체 분류)</span></h2></div>
               <BarList items={byCat} />
             </div>
           </section>
