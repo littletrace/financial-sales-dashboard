@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { BarChart3, LogOut, Monitor, RefreshCw } from 'lucide-react'
-import { fmtCompact, fmtNumber, fmtPct, monthLabel, rate } from '../lib/format'
+import { fmtCompact, fmtNumber, fmtPct, rate, ymLabel } from '../lib/format'
 import type { CustomerSummary, ItemSummary, TeamSummary } from '../App'
 import { ChatPanel } from './ChatPanel'
 
@@ -77,7 +77,8 @@ export function MobileView(p: Props) {
         <label>기간
           <select value={p.month} onChange={(e) => p.setMonth(e.target.value)}>
             <option value={ALL}>전체 기간</option>
-            {p.months.map((m) => <option key={m} value={m}>{m.slice(0, 4)}년 {monthLabel(m)}</option>)}
+            {p.month.includes('~') && <option value={p.month}>{p.month}</option>}
+            {p.months.map((m) => <option key={m} value={m}>{ymLabel(m)}</option>)}
           </select>
         </label>
         <label>부서

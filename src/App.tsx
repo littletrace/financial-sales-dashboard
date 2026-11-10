@@ -41,7 +41,7 @@ import {
   type ItemSalesRow,
   type TeamSalesRow,
 } from './lib/supabase'
-import { fmtCompact, fmtNumber, fmtPct, fmtWon, monthLabel, rate } from './lib/format'
+import { fmtCompact, fmtNumber, fmtPct, fmtWon, monthLabel, rate, ymLabel } from './lib/format'
 import { DataTable, type Column } from './components/DataTable'
 import { PivotView } from './components/PivotView'
 import { RunButton } from './components/RunButton'
@@ -169,7 +169,9 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loadedAt, setLoadedAt] = useState<Date | null>(null)
-  const [month, setMonth] = useState(ALL)
+  // 기간: 전체(ALL) 또는 시작월~끝월 (YYYY-MM). 둘 다 ALL이거나 둘 다 월
+  const [from, setFrom] = useState(ALL)
+  const [to, setTo] = useState(ALL)
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
   // 점유율 차트에서 부서 클릭 → 조회 탭을 그 부서의 거래처별 매출·원가로 열기 (key로 매번 새로 열림)
@@ -228,13 +230,13 @@ export default function App() {
     () => new Set((data?.team ?? []).filter((r) => r.provisional_supply_amount !== 0).map((r) => r.sales_month)),
     [data],
   )
-  const provInView = months.filter((m) => provMonths.has(m) && (month === ALL || m === month))
+  const inMonth = useCallback((r: { sales_month: string }) => from === ALL || (r.sales_month >= from && r.sales_month <= to), [from, to])
+  const provInView = months.filter((m) => provMonths.has(m) && inMonth({ sales_month: m }))
   const teams = useMemo(
     () => [...new Set(data?.team.map((r) => r.sales_team))].sort((a, b) => a.localeCompare(b, 'ko')),
     [data],
   )
 
-  const inMonth = useCallback((r: { sales_month: string }) => month === ALL || r.sales_month === month, [month])
   const inTeam = useCallback((r: { sales_team: string }) => team === ALL || r.sales_team === team, [team])
 
   const kpi = useMemo(() => sum(data?.team.filter((r) => inMonth(r) && inTeam(r)) ?? []), [data, inMonth, inTeam])
@@ -270,7 +272,7 @@ export default function App() {
       const op = s === undefined ? null : t.profit - s
       const open = openMonths.has(m) && !withOpen // 결산 전 + 제외 보기: 점선·빈 점으로만 표시
       return {
-        month: m, label: monthLabel(m) + (prov ? '*' : ''), prov, supply: t.supply, profit: t.profit, rate: rate(t.profit, t.costedSupply),
+        month: m, label: `${m.slice(2, 4)}.${Number(m.slice(5, 7))}` + (prov ? '*' : ''), prov, supply: t.supply, profit: t.profit, rate: rate(t.profit, t.costedSupply),
         opProfit: op, opSolid: open ? null : op, open,
       }
     })
@@ -378,13 +380,14 @@ export default function App() {
     return [...byFrom].map(([from, list]) => `${list.map((m) => m.month).sort().map(monthLabel).join('·')} 매출은 당시 ${from} 매출`).join(', ')
   }, [data, team, inMonth])
 
-  const periodLabel = month === ALL ? '전체 기간' : `${month.slice(0, 4)}년 ${monthLabel(month)}`
+  const periodLabel = from === ALL ? '전체 기간' : from === to ? ymLabel(from) : `${ymLabel(from)} ~ ${ymLabel(to)}`
 
   if (narrow && !pcView)
     return (
       <MobileView
         loading={loading} error={error} onReload={load}
-        months={months} month={month} setMonth={setMonth} teams={teams} team={team} setTeam={setTeam}
+        months={months} month={from === ALL ? ALL : from === to ? from : `${from}~${to}`}
+        setMonth={(m) => !m.includes('~') && (setFrom(m), setTo(m))} teams={teams} team={team} setTeam={setTeam}
         kpi={kpi} teamSummary={teamSummary} topItems={topItems} topCustomers={topCustomers}
         onPcView={() => { setPcView(true); scrollTo(0, 0) }} onLogout={() => supabase.auth.signOut()}
         mergeNote={mergeNote && `${team} ${mergeNote}입니다`}
@@ -408,18 +411,16 @@ export default function App() {
           </div>
         </div>
         <div className="filters glass">
-          <label className="select">
+          {/* 기간: 처음부터 시작월~끝월 달력 칸 고정 (선택에 따라 줄이 늘거나 바뀌지 않게). 전체 = 모든 월 */}
+          <div className="select period">
             <CalendarDays size={15} />
-            <select value={month} onChange={(e) => setMonth(e.target.value)}>
-              <option value={ALL}>전체 기간</option>
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  {m.slice(0, 4)}년 {monthLabel(m)}
-                  {provMonths.has(m) ? ' (가결산)' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+            <input type="month" value={from === ALL ? months[0] ?? '' : from} min={months[0]} max={months[months.length - 1]} aria-label="시작월"
+              onChange={(e) => { const v = e.target.value; if (!v) return; setFrom(v); setTo((t) => (t === ALL ? months[months.length - 1] : t < v ? v : t)) }} />
+            <span>~</span>
+            <input type="month" value={to === ALL ? months[months.length - 1] ?? '' : to} min={months[0]} max={months[months.length - 1]} aria-label="끝월"
+              onChange={(e) => { const v = e.target.value; if (!v) return; setTo(v); setFrom((f) => (f === ALL ? months[0] : f > v ? v : f)) }} />
+            <button type="button" className={from === ALL ? 'period-all active' : 'period-all'} onClick={() => { setFrom(ALL); setTo(ALL) }}>전체</button>
+          </div>
           <label className="select">
             <Building2 size={15} />
             <select value={team} onChange={(e) => setTeam(e.target.value)}>
@@ -578,7 +579,7 @@ export default function App() {
                       <Cell
                         key={t.month}
                         fill={t.prov ? 'url(#barHatch)' : 'url(#barGrad)'}
-                        fillOpacity={month === ALL || month === t.month ? 1 : 0.3}
+                        fillOpacity={inMonth({ sales_month: t.month }) ? 1 : 0.3}
                       />
                     ))}
                   </Bar>
@@ -701,7 +702,7 @@ export default function App() {
               {tab === 'pivot' && <PivotView
                   key={pivotFocus?.key ?? 0}
                   merged={data?.merged ?? []}
-                  focus={pivotFocus && { teams: pivotFocus.teams, month: month === ALL ? null : month }}
+                  focus={pivotFocus && { teams: pivotFocus.teams, from: from === ALL ? null : from, to: from === ALL ? null : to }}
                   months={pivotMonths} teams={pivotTeams} provMonths={provMonths} itemNames={pivotItems} />}
               {tab === 'customer' && (
                 <DataTable

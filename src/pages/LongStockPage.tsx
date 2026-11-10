@@ -4,7 +4,6 @@ import { getLongStock, type LongStockRow } from '../lib/supabase'
 import { fmtCompact, fmtNumber } from '../lib/format'
 import { BUCKETS, bucketOf, downloadCsv } from '../lib/stock'
 import { DataTable, type Column } from '../components/DataTable'
-import { BarList } from '../components/BarList'
 
 const ALL = -1
 
@@ -82,16 +81,6 @@ export function LongStockPage() {
                 <div className="muted small">{k.sub}</div>
               </div>
             ))}
-          </section>
-          <section className="charts">
-            <div className="card glass">
-              <div className="card-head"><h2>미출고 경과 구간별 금액</h2></div>
-              <BarList items={byBucket} />
-            </div>
-            <div className="card glass">
-              <div className="card-head"><h2>품목자산분류별 금액</h2></div>
-              <BarList items={byCat} />
-            </div>
           </section>
           <section className="card glass">
             <div className="chips stock-filters">
