@@ -19,6 +19,7 @@ assert.deepEqual(p('retail-item').teams?.slice().sort(), ['매장영업팀', '�
 assert.equal(currentTeam('유통사업팀'), '영업1팀')
 assert.equal(currentTeam('개미네사업본부'), '개미네')
 assert.equal(currentTeam('A/S팀'), 'A/S팀')
+assert.equal(currentTeam(null), '부서 미분류') // 빈 부서 행이 있어도 화면이 멈추지 않게
 assert.deepEqual(dbTeams(['영업2팀']), ['영업2팀', '화장품사업팀', '해외영업팀'])
 assert.deepEqual(dbTeams(['개미네']), ['개미네', '개미네사업본부'])
 assert.deepEqual([currentTeam('영업운영팀(HCL)'), hqOf('HCL 영업운영팀').hq], ['HCL 영업운영팀', 'HCL사업본부'])
