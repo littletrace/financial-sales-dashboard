@@ -212,7 +212,7 @@ export default function App() {
         getMonthlyCustomerSales(),
         getSalesTargets(),
         getPlMonthly(),
-        getLastLoadedAt(),
+        getLastLoadedAt().catch(() => null), // 적재 시각은 표시용: 실패해도 화면은 열림
       ])
       // 부서는 화면에서만 현재 부서로 합침 (DB는 그 달 부서명 그대로)
       const cur = <T extends { sales_team: string }>(rows: T[]) => rows.map((x) => ({ ...x, sales_team: currentTeam(x.sales_team) }))
@@ -676,7 +676,6 @@ export default function App() {
               )}
               {tab === 'pivot' && <PivotView
                   key={pivotFocus?.key ?? 0}
-                  merged={data?.merged ?? []}
                   focus={pivotFocus && { teams: pivotFocus.teams, from: pivotFocus.range?.from ?? (from === ALL ? null : from), to: pivotFocus.range?.to ?? (from === ALL ? null : to) }}
                   months={pivotMonths} teams={pivotTeams} provMonths={provMonths} itemNames={pivotItems} />}
               {tab === 'customer' && (

@@ -9,6 +9,7 @@ import {
 } from '../lib/pivot'
 
 const CUSTOM = 'custom'
+const yearStart = `${new Date().getFullYear()}-01-01` // 조회 기본 시작일 (올해 1월 1일)
 const TEAM_CUSTOMER = 'team-customer'
 const GROUPS = [...new Set(PRESETS.map((p) => p.group))]
 const pathLabel = (rows: Field[]) => rows.map((f) => FIELD_LABEL[f]).join(' > ')
@@ -27,9 +28,8 @@ function Seg<T extends string>({ value: v, options, onChange }: { value: T; opti
   )
 }
 
-export function PivotView({ months, teams, provMonths, itemNames, focus, merged }: {
+export function PivotView({ months, teams, provMonths, itemNames, focus }: {
   months: string[]; teams: string[]; provMonths: Set<string>; itemNames: string[]
-  merged: { month: string; from: string; to: string }[] // 현재 부서로 합쳐 보여주는 옛 부서 매출
   focus?: { teams: string[]; from: string | null; to: string | null } | null // 점유율 차트에서 부서 클릭으로 열 때 (상단 기간)
 }) {
   const [presetId, setPresetId] = useState(focus ? TEAM_CUSTOMER : CUSTOM)
@@ -39,7 +39,8 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
   // 기간은 일 단위 (YYYY-MM-DD). 열은 월별이라 걸친 월이 열로 나옴
   const first = months[0] ? `${months[0]}-01` : ''
   const last = months.length ? lastDay(months[months.length - 1]) : ''
-  const [from, setFrom] = useState(focus?.from ? `${focus.from}-01` : first)
+  // 기본 기간은 올해(3년 전체는 무거워 DB 시간 제한에 걸림). 데이터가 올해 이전에 끝나면 처음부터
+  const [from, setFrom] = useState(focus?.from ? `${focus.from}-01` : last >= yearStart && first < yearStart ? yearStart : first)
   const [to, setTo] = useState(focus?.to ? lastDay(focus.to) : last)
   const today = new Date().toLocaleDateString('sv-SE') // 로컬 YYYY-MM-DD
   const [openYears, setOpenYears] = useState(() => new Set([to.slice(0, 4)])) // 연도 접기: 펼친 연도 (기본 마지막 해)
@@ -100,16 +101,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
   const toggleYear = (y: string) => setOpenYears((s) => { const n = new Set(s); if (n.has(y)) n.delete(y); else n.add(y); return n })
   const provInRange = monthCols.some((m) => provMonths.has(m))
   const retail = sameSet(cfg.teams, RETAIL)
-  // 부서를 골랐고 그 기간에 옛 부서 매출이 합쳐져 있으면 안내
-  const mergeNote = useMemo(() => {
-    const hit = merged.filter((m) => cfg.teams.includes(m.to) && (!fromM || m.month >= fromM) && (!toM || m.month <= toM))
-    const by = new Map<string, string[]>()
-    for (const m of hit) by.set(`${m.to}|${m.from}`, [...(by.get(`${m.to}|${m.from}`) ?? []), m.month])
-    return [...by].map(([k, ms]) => {
-      const [cur, old] = k.split('|')
-      return `${cur} ${ms.sort().map(monthLabel).join('·')} 매출은 당시 ${old} 매출`
-    }).join(', ')
-  }, [merged, cfg.teams, fromM, toM])
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase()
     return q ? itemNames.filter((n) => n.toLowerCase().includes(q) && !cfg.items.includes(n)).slice(0, 8) : []
@@ -353,7 +344,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
       </div>
 
       {error && <div className="alert glass">조회 실패: {error}</div>}
-      {mergeNote && <p className="merge-note">{mergeNote}입니다 (현재 부서로 합쳐 표시)</p>}
 
       <div className={`table-scroll pivot-scroll ${loading ? 'refreshing' : ''}`}>
         <table className="pivot-table">
