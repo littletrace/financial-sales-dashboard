@@ -51,7 +51,7 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 .brand > div:last-child { min-width: 0; }
 .brand-mark { flex-shrink: 0; }
 .brand p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.brand h1 { font-size: 1.35rem; }
+.brand h1 { font-size: 1.35rem; white-space: nowrap; }
 .brand p { margin: 2px 0 0; }
 .brand-mark {
   width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center;
