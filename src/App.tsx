@@ -5,11 +5,7 @@ import {
   Cell,
   ComposedChart,
   Line,
-  Pie,
-  PieChart,
   ResponsiveContainer,
-  Sector,
-  type PieSectorShapeProps,
   Tooltip,
   XAxis,
   YAxis,
@@ -88,7 +84,8 @@ export interface TeamSummary extends Totals {
   sales_team: string
   rate: number | null
   target: number | null // 매출목표 (실적이 있는 월만 합산)
-  achieve: number | null // 달성률 = 매출액 ÷ 매출목표
+  targetSupply: number // 목표가 있는 월의 매출 (달성률 분자)
+  achieve: number | null // 달성률 = 목표가 있는 월의 매출 ÷ 매출목표
 }
 
 export interface ItemSummary extends Totals {
@@ -110,23 +107,6 @@ type Tab = 'team' | 'item' | 'customer' | 'pivot'
 
 const ALL = 'all'
 const PALETTE = ['#3182f6', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#f97316', '#94a3b8']
-// 도넛 조각: 막대처럼 그라데이션 (바깥 진하게 → 안쪽 옅게). 원 중심 기준이라 조각마다 같은 방향
-function pieGradShape(p: PieSectorShapeProps) {
-  if ((p.percent ?? 0) < 0.01) return <Sector {...p} /> // 1% 미만 조각은 원색 (그라데이션이면 너무 옅어 안 보임)
-  const id = `pie-grad-${p.index}`
-  return (
-    <g>
-      <defs>
-        <radialGradient id={id} gradientUnits="userSpaceOnUse" cx={p.cx} cy={p.cy} r={p.outerRadius}>
-          <stop offset={(p.innerRadius ?? 0) / (p.outerRadius || 1)} stopColor={p.fill} stopOpacity={0.62} />
-          <stop offset={1} stopColor={p.fill} stopOpacity={0.95} />
-        </radialGradient>
-      </defs>
-      <Sector {...p} fill={`url(#${id})`} />
-    </g>
-  )
-}
-
 const tooltipStyle = {
   background: '#ffffff',
   border: '1px solid #e5e8eb',
@@ -282,28 +262,32 @@ export default function App() {
     const rows = data?.team.filter(inMonth) ?? []
     // 전체 기간이면 실적이 있는 월(1월~당월)의 목표만 합산: 아직 안 온 달 목표까지 넣으면 달성률이 의미 없음
     const targetOf = new Map<string, number>()
+    const targetMonths = new Set<string>() // 부서|월: 목표 없는 월(예: 2024~2025)의 매출은 달성률에서 뺌
     for (const t of data?.targets ?? []) {
-      if (inMonth({ sales_month: t.target_month }) && months.includes(t.target_month))
+      if (inMonth({ sales_month: t.target_month }) && months.includes(t.target_month)) {
         targetOf.set(t.sales_team, (targetOf.get(t.sales_team) ?? 0) + t.target_amount)
+        targetMonths.add(`${t.sales_team}|${t.target_month}`)
+      }
     }
     return [...groupBy(rows, (r) => r.sales_team)].map(([name, list]) => {
       const t = sum(list)
       const target = targetOf.get(name) ?? null
+      const targetSupply = list.filter((r) => targetMonths.has(`${name}|${r.sales_month}`)).reduce((a, r) => a + r.total_supply_amount, 0)
       const { hq, rank } = hqOf(name)
       return {
         hq, hq_rank: rank, sales_team: name, ...t, rate: rate(t.profit, t.costedSupply),
-        target, achieve: target ? (t.supply / target) * 100 : null,
+        target, targetSupply, achieve: target ? (targetSupply / target) * 100 : null,
       }
     })
   }, [data, inMonth, months])
 
-  const teamPie = useMemo(() => {
-    const sorted = [...teamSummary].sort((a, b) => b.supply - a.supply)
-    const head = sorted.slice(0, 7).map((t) => ({ name: t.sales_team, value: t.supply, teams: [t.sales_team] }))
-    const rest = sorted.slice(7)
-    const restSum = rest.reduce((s, t) => s + t.supply, 0)
-    return restSum > 0 ? [...head, { name: '기타', value: restSum, teams: rest.map((t) => t.sales_team) }] : head
-  }, [teamSummary])
+  // 목표 달성률: 색은 예전 점유율 도넛과 같은 규칙 (매출 순위 1~7위 PALETTE, 그 아래 회색). 목표 없는 부서는 빠짐
+  const teamAchieve = useMemo(
+    () => [...teamSummary].sort((a, b) => b.supply - a.supply)
+      .map((t, i) => ({ ...t, color: PALETTE[Math.min(i, PALETTE.length - 1)] })).filter((t) => t.target),
+    [teamSummary],
+  )
+  const achMax = Math.min(200, Math.max(120, ...teamAchieve.map((t) => t.achieve ?? 0))) // 막대 눈금 끝 (%): 200% 넘으면 잘림
 
   const topItems = useMemo<ItemSummary[]>(() => {
     const rows = data?.item.filter(inMonth) ?? []
@@ -616,54 +600,35 @@ export default function App() {
               </ResponsiveContainer>
             </div>
 
-            <div className="card glass pie-card">
+            <div className="card glass ach-card">
               <div className="card-head">
-                <h2>부서별 매출 점유율</h2>
-                <span className="muted small">{periodLabel}</span>
+                <h2>부서별 목표 달성률</h2>
+                <span className="muted small">{periodLabel} · 선 = 목표 100%</span>
               </div>
-              <div className="pie-wrap">
-                <ResponsiveContainer width="100%" height={240}>
-                  <PieChart>
-                    <Pie
-                      data={teamPie}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius="56%"
-                      outerRadius="90%"
-                      paddingAngle={2}
-                      minAngle={3} // 0.4% 같은 작은 조각도 보이게
-                      shape={pieGradShape}
-                      stroke="none"
-                      cursor="pointer"
-                      onClick={(_, i) => openTeamPivot(teamPie[i].teams)}
-                    >
-                      {teamPie.map((d, i) => (
-                        <Cell
-                          key={d.name}
-                          fill={PALETTE[i % PALETTE.length]}
-                          fillOpacity={team === ALL || team === d.name ? 1 : 0.25}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip isAnimationActive={false} contentStyle={tooltipStyle} formatter={(v) => fmtWon(Number(v))} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <ul className="legend">
-                  <li className="legend-head"><span className="legend-name">부서</span><span>점유율</span></li>
-                  {teamPie.map((d, i) => {
-                    const total = teamPie.reduce((s, x) => s + x.value, 0)
-                    return (
-                      <li key={d.name}>
-                        <button type="button" className="legend-btn" title={`${d.name} 거래처별 매출·원가 보기`} onClick={() => openTeamPivot(d.teams)}>
-                          <i style={{ background: PALETTE[i % PALETTE.length] }} />
-                          <span className="legend-name">{d.name}</span>
-                          <span className="muted">{total ? ((d.value / total) * 100).toFixed(1) : 0}%</span>
-                        </button>
-                      </li>
-                    )
-                  })}
+              {teamAchieve.length ? (
+                <ul className="ach-list">
+                  {teamAchieve.map((t) => (
+                    <li key={t.sales_team}>
+                      {/* 막대를 누르면 그 부서 거래처별 조회로 (예전 점유율 도넛과 같은 동작) */}
+                      <button type="button" className={`ach-row${team !== ALL && team !== t.sales_team ? ' dim' : ''}`}
+                        title={`${t.sales_team} 거래처별 매출·원가 보기`} onClick={() => openTeamPivot([t.sales_team])}>
+                        <span className="legend-name">{t.sales_team}</span>
+                        <span className="ach-track">
+                          <span className="ach-bar" style={{ width: `${(Math.min(t.achieve ?? 0, achMax) / achMax) * 100}%`, background: `linear-gradient(90deg, ${t.color}9e, ${t.color}f2)` }} />
+                          <span className="ach-goal" style={{ left: `${(100 / achMax) * 100}%` }} />
+                        </span>
+                        <b>{fmtPct(t.achieve)}</b>
+                        <span className="muted small">{fmtCompact(t.targetSupply)} / {fmtCompact(t.target ?? 0)}</span>
+                      </button>
+                    </li>
+                  ))}
                 </ul>
-              </div>
+              ) : (
+                <p className="muted small">선택한 기간에 매출목표가 없습니다</p>
+              )}
+              {teamAchieve.length > 0 && teamSummary.some((t) => !t.target && t.supply) && (
+                <p className="muted small ach-note">목표가 없는 부서({teamSummary.filter((t) => !t.target && t.supply).map((t) => t.sales_team).join(', ')})는 빠집니다</p>
+              )}
             </div>
 
           </section>
