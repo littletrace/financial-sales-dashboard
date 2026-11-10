@@ -324,16 +324,19 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
               </div>
             )}
           </span>
-          {cfg.top > 0 && cfg.rows.length > 1 && (
-            <button className={showAll ? 'btn small' : 'btn ghost small'} aria-pressed={showAll} onClick={() => setShowAll((v) => !v)}
-              title={`팀마다 판매금액 상위 ${cfg.top}개만 보기 / 전체 보기 전환`}>
-              {showAll ? `상위 ${cfg.top}개만` : '전체보기'}
-            </button>
-          )}
           {cfg.rows.length > 1 && (
             <>
-              <button className="btn ghost small" onClick={() => setExpanded(new Set(allParents(tree)))}>모두 펼치기</button>
-              <button className="btn ghost small" onClick={() => setExpanded(new Set())}>모두 접기</button>
+              {/* 상위 N개 프리셋: 모두 펼치기 = 하위 행 전체 + 전부 펼침, 다시 누르면 상위 N개로 */}
+              <button className="btn ghost small" onClick={() => {
+                if (cfg.top && showAll) {
+                  setShowAll(false)
+                  setExpanded(new Set(tree.children.map((c) => c.key)))
+                } else {
+                  setShowAll(true)
+                  setExpanded(new Set(allParents(tree)))
+                }
+              }}>{cfg.top && showAll ? `상위 ${cfg.top}개만` : '모두 펼치기'}</button>
+              <button className="btn ghost small" onClick={() => { setShowAll(false); setExpanded(new Set()) }}>모두 접기</button>
             </>
           )}
         </span>

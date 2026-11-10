@@ -230,17 +230,6 @@ export default function App() {
     () => new Set((data?.team ?? []).filter((r) => r.provisional_supply_amount !== 0).map((r) => r.sales_month)),
     [data],
   )
-  const years = useMemo(() => [...new Set(months.map((m) => m.slice(0, 4)))], [months])
-  // 시작월 선택: 'Y2025' = 그 해 전체, 월 = 시작월 (끝월이 앞이면 같은 월로)
-  const pickFrom = (v: string) => {
-    if (v === ALL) return (setFrom(ALL), setTo(ALL))
-    if (v.startsWith('Y')) {
-      const ys = months.filter((m) => m.startsWith(v.slice(1)))
-      return (setFrom(ys[0]), setTo(ys[ys.length - 1]))
-    }
-    setFrom(v)
-    setTo((t) => (t === ALL || t < v ? v : t))
-  }
   const inMonth = useCallback((r: { sales_month: string }) => from === ALL || (r.sales_month >= from && r.sales_month <= to), [from, to])
   const provInView = months.filter((m) => provMonths.has(m) && inMonth({ sales_month: m }))
   const teams = useMemo(
@@ -422,38 +411,16 @@ export default function App() {
           </div>
         </div>
         <div className="filters glass">
-          <label className="select">
+          {/* 기간: 처음부터 시작월~끝월 달력 칸 고정 (선택에 따라 줄이 늘거나 바뀌지 않게). 전체 = 모든 월 */}
+          <div className="select period">
             <CalendarDays size={15} />
-            <select value={from} onChange={(e) => pickFrom(e.target.value)} aria-label="시작월">
-              <option value={ALL}>전체 기간</option>
-              {years.length > 1 && (
-                <optgroup label="연간">
-                  {years.map((y) => <option key={y} value={`Y${y}`}>{y}년 전체</option>)}
-                </optgroup>
-              )}
-              <optgroup label="시작월">
-                {months.map((m) => (
-                  <option key={m} value={m}>
-                    {ymLabel(m)}
-                    {provMonths.has(m) ? ' (가결산)' : ''}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </label>
-          {from !== ALL && (
-            <label className="select">
-              <span className="muted">~</span>
-              <select value={to} onChange={(e) => setTo(e.target.value)} aria-label="끝월">
-                {months.filter((m) => m >= from).map((m) => (
-                  <option key={m} value={m}>
-                    {ymLabel(m)}
-                    {provMonths.has(m) ? ' (가결산)' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+            <input type="month" value={from === ALL ? months[0] ?? '' : from} min={months[0]} max={months[months.length - 1]} aria-label="시작월"
+              onChange={(e) => { const v = e.target.value; if (!v) return; setFrom(v); setTo((t) => (t === ALL ? months[months.length - 1] : t < v ? v : t)) }} />
+            <span>~</span>
+            <input type="month" value={to === ALL ? months[months.length - 1] ?? '' : to} min={months[0]} max={months[months.length - 1]} aria-label="끝월"
+              onChange={(e) => { const v = e.target.value; if (!v) return; setTo(v); setFrom((f) => (f === ALL ? months[0] : f > v ? v : f)) }} />
+            <button type="button" className={from === ALL ? 'period-all active' : 'period-all'} onClick={() => { setFrom(ALL); setTo(ALL) }}>전체</button>
+          </div>
           <label className="select">
             <Building2 size={15} />
             <select value={team} onChange={(e) => setTeam(e.target.value)}>

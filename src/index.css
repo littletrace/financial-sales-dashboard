@@ -46,8 +46,11 @@ button, input, select { font: inherit; color: inherit; }
 main { display: flex; flex-direction: column; gap: 20px; transition: opacity 0.3s; }
 main.refreshing { opacity: 0.55; pointer-events: none; }
 
-.topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
-.brand { display: flex; align-items: center; gap: 14px; }
+.topbar { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.brand > div:last-child { min-width: 0; }
+.brand-mark { flex-shrink: 0; }
+.brand p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand h1 { font-size: 1.35rem; }
 .brand p { margin: 2px 0 0; }
 .brand-mark {
@@ -55,13 +58,19 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
   background: var(--accent); color: #fff; box-shadow: 0 6px 16px -8px rgba(49, 130, 246, 0.6);
 }
 
-.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; border-radius: 16px; }
+.filters { display: flex; flex-wrap: nowrap; flex-shrink: 0; align-items: center; gap: 8px; padding: 8px; border-radius: 16px; }
 .select {
   display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 38px; border-radius: 11px;
   background: var(--field); border: 1px solid var(--line); color: var(--muted);
 }
 .select select { background: transparent; border: 0; outline: none; color: var(--text); cursor: pointer; padding-right: 4px; }
 .select option { background: #fff; }
+/* 상단 기간: 폭 고정 */
+.period input { width: 136px; background: transparent; border: 0; outline: none; color: var(--text); font: inherit; cursor: pointer; }
+.period-all { border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 8px; height: 26px; padding: 0 9px; font: inherit; font-size: 0.8rem; cursor: pointer; }
+.period-all.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* 좁은 PC 화면: 줄바꿈 대신 버튼 글자를 숨김 (아이콘·툴팁 유지) */
+@media (max-width: 1360px) { .filters .btn span { display: none; } }
 .btn {
   display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border-radius: 11px;
   border: 1px solid transparent; background: var(--accent-soft); color: #1b64da; font-weight: 600; cursor: pointer;
@@ -246,7 +255,8 @@ th.drop-target { box-shadow: inset 2px 0 0 var(--accent); }
 .pivot-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
 .pivot-actions { display: inline-flex; gap: 6px; }
 .btn.small { padding: 5px 10px; font-size: 0.8rem; }
-.pivot-scroll { max-height: max(640px, calc(100vh - 140px)); } /* 조회 표: 화면 높이만큼 */
+/* 조회 표: 이전 높이의 2/3, 오른쪽 아래 모서리를 끌어 높이 조절 */
+.pivot-scroll { max-height: none; height: max(430px, calc((100vh - 140px) * 2 / 3)); min-height: 200px; resize: vertical; }
 .pivot-table th:first-child, .pivot-table td.pivot-label { position: sticky; left: 0; background: var(--head); z-index: 2; }
 .pivot-table td.pivot-label { background: var(--surface); max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
 .pivot-table tr.group td { font-weight: 600; }
