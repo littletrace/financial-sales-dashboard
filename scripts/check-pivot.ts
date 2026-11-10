@@ -1,6 +1,6 @@
 // 조회 탭 피벗 로직 점검: node scripts/check-pivot.ts
 import assert from 'node:assert/strict'
-import { PRESETS, buildTree, flatten, lastDay, presetCfg, toCurrentTeams, toParams, value } from '../src/lib/pivot.ts'
+import { PRESETS, buildTree, flatten, lastDay, sumCells, presetCfg, toCurrentTeams, toParams, value } from '../src/lib/pivot.ts'
 import { currentTeam, dbTeams, hqOf } from '../src/lib/teams.ts'
 import type { PivotRow } from '../src/lib/supabase.ts'
 
@@ -80,5 +80,11 @@ assert.equal(lastDay('2026-12'), '2026-12-31')
   assert.deepEqual(flatten(tt, keys, 5).map((n) => n.label), ['영업1팀', '품목0', '품목1', '품목2', '품목3', '품목4', '영업2팀', 'X'])
   assert.equal(flatten(tt, keys).length, 10) // 전체보기: 팀 2 + 품목 8
   assert.equal(tt.children[0].total.supply, 679) // 팀 합계는 전체 품목 기준
+}
+// 연도 접기: 연 합계 = 그 해 월 칸 합
+{
+  const yt = buildTree([[['A'], '2024-01', 1, 10, 5, 5, 10], [['A'], '2024-12', 1, 20, 5, 15, 20], [['A'], '2025-01', 1, 7, 0, 7, 7]], '')
+  assert.equal(sumCells(yt, ['2024-01', '2024-02', '2024-12'])!.supply, 30)
+  assert.equal(sumCells(yt, ['2023-05']), undefined)
 }
 console.log('check-pivot: ok')

@@ -126,6 +126,18 @@ function addCell(n: Node, r: PivotRow) {
   add(n.total, r)
 }
 
+// 여러 월 칸 합계 (연도 접기). 해당 월이 하나도 없으면 undefined
+export function sumCells(n: Node, months: string[]): Agg | undefined {
+  let a: Agg | undefined
+  for (const m of months) {
+    const c = n.cells.get(m)
+    if (!c) continue
+    a ??= zero()
+    for (const k of Object.keys(a) as (keyof Agg)[]) a[k] += c[k]
+  }
+  return a
+}
+
 // 이익률 = 매출이익 ÷ 원가 반영 매출 (원가 없는 품목은 분모에서도 빠짐)
 export function value(a: Agg | undefined, m: Measure): number | null {
   if (!a) return null

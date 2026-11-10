@@ -4,7 +4,7 @@ import { getPivot, type PivotRow } from '../lib/supabase'
 import { fmtNumber, monthLabel } from '../lib/format'
 import {
   COST_MEASURES, EX_CATEGORIES, FIELD_LABEL, MEASURE_LABEL, PRESETS, RETAIL,
-  allParents, buildTree, toCurrentTeams, flatten, lastDay, presetCfg, toParams, value,
+  allParents, buildTree, toCurrentTeams, flatten, lastDay, presetCfg, sumCells, toParams, value,
   type Cfg, type Field, type Measure, type Node,
 } from '../lib/pivot'
 
@@ -41,6 +41,8 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
   const last = months.length ? lastDay(months[months.length - 1]) : ''
   const [from, setFrom] = useState(focus?.from ? `${focus.from}-01` : first)
   const [to, setTo] = useState(focus?.to ? lastDay(focus.to) : last)
+  const today = new Date().toLocaleDateString('sv-SE') // 로컬 YYYY-MM-DD
+  const [openYears, setOpenYears] = useState(() => new Set([to.slice(0, 4)])) // 연도 접기: 펼친 연도 (기본 마지막 해)
   const [showAll, setShowAll] = useState(false) // 상위 N개 프리셋에서 전체 하위 행 보기
   const [query, setQuery] = useState('')
   const [suggestOpen, setSuggestOpen] = useState(false)
@@ -89,7 +91,13 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
   const toM = to.slice(0, 7)
   const monthCols = months.filter((m) => (!fromM || m >= fromM) && (!toM || m <= toM))
   const byMeasure = cfg.col === 'measure'
-  const cols: string[] = byMeasure ? (Object.keys(MEASURE_LABEL) as Measure[]) : monthCols
+  // 2개 연도 이상이면 연도별로 접기(+/−). 접힌 연도는 'YYYY' 칸 하나(연 합계)
+  const years = [...new Set(monthCols.map((m) => m.slice(0, 4)))]
+  const grouped = !byMeasure && years.length >= 2
+  const monthsOf = (c: string) => (c.length === 4 ? monthCols.filter((m) => m.startsWith(c)) : [c])
+  const cols: string[] = byMeasure ? (Object.keys(MEASURE_LABEL) as Measure[])
+    : grouped ? years.flatMap((y) => (openYears.has(y) ? monthsOf(y) : [y])) : monthCols
+  const toggleYear = (y: string) => setOpenYears((s) => { const n = new Set(s); if (n.has(y)) n.delete(y); else n.add(y); return n })
   const provInRange = monthCols.some((m) => provMonths.has(m))
   const retail = sameSet(cfg.teams, RETAIL)
   // 부서를 골랐고 그 기간에 옛 부서 매출이 합쳐져 있으면 안내
@@ -109,9 +117,9 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
 
   const cell = (n: Node, c: string) => {
     const m = byMeasure ? (c as Measure) : cfg.measure
-    const v = value(byMeasure ? n.total : n.cells.get(c), m)
+    const v = value(byMeasure ? n.total : c.length === 4 ? sumCells(n, monthsOf(c)) : n.cells.get(c), m)
     // 원가·이익·이익률만 가결산 영향을 받음 (판매금액·수량은 확정 값)
-    const prov = COST_MEASURES.has(m) && (byMeasure ? provInRange : provMonths.has(c))
+    const prov = COST_MEASURES.has(m) && (byMeasure ? provInRange : monthsOf(c).some((x) => provMonths.has(x)))
     return (
       <td key={c} className={`num${prov ? ' prov' : ''}${v != null && v < 0 ? ' neg' : ''}`}>
         {fmt(v, m)}
@@ -206,6 +214,8 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
             <span className="muted">~</span>
             <input type="date" value={to} min={first} max={last} aria-label="종료일"
               onChange={(e) => { const v = e.target.value; if (!v) return; setTo(v); if (from > v) setFrom(v) }} />
+            <button type="button" className={from === first && to === today ? 'period-all active' : 'period-all'}
+              onClick={() => { setFrom(first); setTo(today) }} title="첫 데이터 월 1일 ~ 오늘">전체</button>
           </div>
         </div>
         <div className="frow">
@@ -348,12 +358,26 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
       <div className={`table-scroll pivot-scroll ${loading ? 'refreshing' : ''}`}>
         <table className="pivot-table">
           <thead>
+            {grouped && (
+              <tr className="year-row">
+                <th rowSpan={2}>{cfg.rows.map((f) => FIELD_LABEL[f]).join(' / ')}</th>
+                <th rowSpan={2} className="num">합계</th>
+                {years.map((y) => (
+                  <th key={y} colSpan={openYears.has(y) ? monthsOf(y).length : 1} className="year-th">
+                    <button type="button" className="year-toggle" onClick={() => toggleYear(y)} title={openYears.has(y) ? '월 접기' : '월 펼치기'}>
+                      {openYears.has(y) ? '−' : '+'}
+                    </button>
+                    {y}년
+                  </th>
+                ))}
+              </tr>
+            )}
             <tr>
-              <th>{cfg.rows.map((f) => FIELD_LABEL[f]).join(' / ')}</th>
-              {!byMeasure && <th className="num">합계</th>}
+              {!grouped && <th>{cfg.rows.map((f) => FIELD_LABEL[f]).join(' / ')}</th>}
+              {!byMeasure && !grouped && <th className="num">합계</th>}
               {cols.map((c) => (
                 <th key={c} className="num">
-                  {byMeasure ? MEASURE_LABEL[c as Measure] : monthLabel(c)}
+                  {byMeasure ? MEASURE_LABEL[c as Measure] : c.length === 4 ? '연 합계' : grouped ? `${Number(c.slice(5, 7))}월` : monthLabel(c)}
                   {!byMeasure && provMonths.has(c) && <span className="badge-prov" title="원가 미확정: 품목별 최근 확정 원가로 계산">가결산</span>}
                 </th>
               ))}
