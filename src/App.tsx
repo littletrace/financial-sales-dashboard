@@ -292,7 +292,8 @@ export default function App() {
   // 목표 달성률: 색은 예전 점유율 도넛과 같은 규칙 (매출 순위 1~7위 PALETTE, 그 아래 회색). 목표 없는 부서는 빠짐
   const teamAchieve = useMemo(
     () => [...yearSummary].sort((a, b) => b.supply - a.supply)
-      .map((t, i) => ({ ...t, color: PALETTE[Math.min(i, PALETTE.length - 1)] })).filter((t) => t.target),
+      .map((t, i) => ({ ...t, color: PALETTE[Math.min(i, PALETTE.length - 1)] })).filter((t) => t.target)
+      .sort((a, b) => a.sales_team.localeCompare(b.sales_team, 'ko')), // 표시는 부서 이름순 (색은 매출 순위 그대로)
     [yearSummary],
   )
   const yearMonths = months.filter((m) => m.startsWith(THIS_YEAR))
