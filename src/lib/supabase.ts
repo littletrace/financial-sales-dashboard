@@ -165,6 +165,8 @@ export interface PivotParams {
   teams?: string[] | null
   items?: string[] | null
   sources?: string[] | null // 국내 / 수출
+  dateFrom?: string // YYYY-MM-DD, 월 중간부터 볼 때만 (DB migration_20261110_pivot_date_range 필요)
+  dateTo?: string
 }
 
 export async function getPivot(p: PivotParams): Promise<PivotRow[]> {
@@ -177,6 +179,8 @@ export async function getPivot(p: PivotParams): Promise<PivotRow[]> {
     p_teams: p.teams ?? null,
     p_items: p.items ?? null,
     p_sources: p.sources ?? null,
+    ...(p.dateFrom && { p_date_from: p.dateFrom }),
+    ...(p.dateTo && { p_date_to: p.dateTo }),
   })
   if (error) throw new Error(`[pivot_sales] ${error.message}`)
   return (data ?? []) as PivotRow[]

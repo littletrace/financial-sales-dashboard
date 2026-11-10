@@ -41,10 +41,11 @@ export interface Cfg {
   items: string[]
   col: ColMode
   measure: Measure
+  top: number // 0 = 전체. N이면 상위 행 아래 하위 행을 판매금액 상위 N개만 (전체보기로 해제)
 }
 // 기본값 = KPI와 같은 기준(전체 포함)
 export const DEFAULT_CFG: Cfg = {
-  rows: ['sales_team', 'item_category'], src: 'all', ch: 'all', teams: [], ex: 'none', items: [], col: 'month', measure: 'supply',
+  rows: ['sales_team', 'item_category'], src: 'all', ch: 'all', teams: [], ex: 'none', items: [], col: 'month', measure: 'supply', top: 0,
 }
 
 export interface Preset extends Partial<Cfg> {
@@ -59,7 +60,7 @@ export const PRESETS: Preset[] = [
   { group: '부서', id: 'team-customer', name: '부서 거래처별 매출·원가', rows: ['customer_name'], col: 'measure' },
   { group: '부서', id: 'team-store', name: '부서별 영업점별 매출', rows: ['sales_team', 'item_category', 'customer_name'], ex: 'base', src: '국내', ch: '영업점', old: '조회5' },
   { group: '영업점', id: 'store', name: '영업점별 매출·원가', rows: ['customer_name', 'item_category'], ex: 'base', src: '국내', ch: '영업점', col: 'measure', old: '조회4' },
-  { group: '품목', id: 'retail-item', name: '유통사업본부 품목별 판매처', rows: ['sales_team', 'item_category', 'item_name', 'customer_name'], ex: 'base', src: '국내', teams: RETAIL, old: '조회7' },
+  { group: '품목', id: 'retail-item', name: '유통본부 팀별 상위품목', rows: ['sales_team', 'item_name'], ex: 'base', src: '국내', teams: RETAIL, top: 5 },
   { group: '품목', id: 'dairy', name: '유제품', rows: ['item_name', 'customer_name'], items: DAIRY, measure: 'qty', old: '유제품' },
   { group: '권역', id: 'region-team', name: '권역별 부서 매출', rows: ['region', 'sales_team'] },
   { group: '권역', id: 'region-customer', name: '권역별 거래처 매출', rows: ['region', 'customer_name'] },
@@ -72,11 +73,19 @@ export function presetCfg(p: Preset | undefined): Cfg {
   return c
 }
 
+// 해당 월 말일 (YYYY-MM → YYYY-MM-DD)
+export const lastDay = (ym: string) => new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7), 0)).toISOString().slice(0, 10)
+
+// from/to: YYYY-MM 또는 YYYY-MM-DD. 월 경계가 아닌 날짜일 때만 일자 조건을 보냄 (월 단위는 기존 RPC 인자 그대로)
 export function toParams(c: Cfg, from: string, to: string): PivotParams {
+  const dateFrom = from.length > 7 && !from.endsWith('-01') ? from : undefined
+  const dateTo = to.length > 7 && to !== lastDay(to.slice(0, 7)) ? to : undefined
   return {
     rows: c.rows,
-    from: from || null,
-    to: to || null,
+    from: from.slice(0, 7) || null,
+    to: to.slice(0, 7) || null,
+    ...(dateFrom && { dateFrom }),
+    ...(dateTo && { dateTo }),
     exclude: c.ex === 'none' ? undefined : EX_CATEGORIES[c.ex],
     channel: c.ch === 'all' ? undefined : c.ch,
     teams: c.teams.length ? dbTeams(c.teams) : null, // 현재 부서 → DB의 옛 부서명까지
@@ -155,10 +164,11 @@ export function buildTree(rows: PivotRow[], query: string): Node {
   return root
 }
 
-export function flatten(n: Node, expanded: Set<string>, out: Node[] = []): Node[] {
-  for (const c of n.children) {
+// top > 0: 최상위 행은 모두, 그 아래는 판매금액 상위 top개만
+export function flatten(n: Node, expanded: Set<string>, top = 0, out: Node[] = []): Node[] {
+  for (const c of top && n.depth >= 0 ? n.children.slice(0, top) : n.children) {
     out.push(c)
-    if (expanded.has(c.key)) flatten(c, expanded, out)
+    if (expanded.has(c.key)) flatten(c, expanded, top, out)
   }
   return out
 }

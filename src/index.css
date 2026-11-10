@@ -220,7 +220,7 @@ th.drop-target { box-shadow: inset 2px 0 0 var(--accent); }
 .frow + .frow { border-top: 1px solid var(--line); }
 .frow > .lbl { font-size: 0.82rem; font-weight: 600; color: var(--muted); }
 .frow .ctl { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; min-width: 0; }
-.frow select {
+.frow select, .frow input[type="date"] {
   height: 32px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); color: var(--text);
 }
 .row-level { display: inline-flex; align-items: center; gap: 6px; }
@@ -246,7 +246,7 @@ th.drop-target { box-shadow: inset 2px 0 0 var(--accent); }
 .pivot-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
 .pivot-actions { display: inline-flex; gap: 6px; }
 .btn.small { padding: 5px 10px; font-size: 0.8rem; }
-.pivot-scroll { max-height: 640px; }
+.pivot-scroll { max-height: max(640px, calc(100vh - 140px)); } /* 조회 표: 화면 높이만큼 */
 .pivot-table th:first-child, .pivot-table td.pivot-label { position: sticky; left: 0; background: var(--head); z-index: 2; }
 .pivot-table td.pivot-label { background: var(--surface); max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
 .pivot-table tr.group td { font-weight: 600; }

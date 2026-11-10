@@ -1,6 +1,6 @@
 // 조회 탭 피벗 로직 점검: node scripts/check-pivot.ts
 import assert from 'node:assert/strict'
-import { PRESETS, buildTree, presetCfg, toCurrentTeams, toParams, value } from '../src/lib/pivot.ts'
+import { PRESETS, buildTree, flatten, lastDay, presetCfg, toCurrentTeams, toParams, value } from '../src/lib/pivot.ts'
 import { currentTeam, dbTeams, hqOf } from '../src/lib/teams.ts'
 import type { PivotRow } from '../src/lib/supabase.ts'
 
@@ -57,4 +57,27 @@ assert.equal(value(undefined, 'supply'), null)
 const found = buildTree(rows, 'a마트')
 assert.equal(found.total.supply, 1100)
 assert.equal(found.children.length, 1)
+
+// 일 단위 기간: 월 경계면 기존 월 인자만, 월 중간이면 일자 인자 추가
+assert.equal(lastDay('2024-02'), '2024-02-29')
+assert.equal(lastDay('2026-12'), '2026-12-31')
+{
+  const c = presetCfg(undefined)
+  const whole = toParams(c, '2026-01-01', '2026-10-31')
+  assert.deepEqual([whole.from, whole.to, 'dateFrom' in whole, 'dateTo' in whole], ['2026-01', '2026-10', false, false])
+  const mid = toParams(c, '2026-01-15', '2026-02-10')
+  assert.deepEqual([mid.from, mid.to, mid.dateFrom, mid.dateTo], ['2026-01', '2026-02', '2026-01-15', '2026-02-10'])
+}
+// 유통본부 팀별 상위품목: 부서 > 품명, 팀은 모두, 팀 아래 품목은 상위 N개만
+{
+  const pr = presetCfg(PRESETS.find((x) => x.id === 'retail-item'))
+  assert.deepEqual([pr.rows, pr.top], [['sales_team', 'item_name'], 5])
+  const many: PivotRow[] = Array.from({ length: 7 }, (_, i) => [['영업1팀', `품목${i}`], '2026-10', 1, 100 - i, 0, 0, 0] as PivotRow)
+  many.push([['영업2팀', 'X'], '2026-10', 1, 5, 0, 0, 0])
+  const tt = buildTree(many, '')
+  const keys = new Set(tt.children.map((c) => c.key))
+  assert.deepEqual(flatten(tt, keys, 5).map((n) => n.label), ['영업1팀', '품목0', '품목1', '품목2', '품목3', '품목4', '영업2팀', 'X'])
+  assert.equal(flatten(tt, keys).length, 10) // 전체보기: 팀 2 + 품목 8
+  assert.equal(tt.children[0].total.supply, 679) // 팀 합계는 전체 품목 기준
+}
 console.log('check-pivot: ok')

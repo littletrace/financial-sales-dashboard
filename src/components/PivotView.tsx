@@ -4,7 +4,7 @@ import { getPivot, type PivotRow } from '../lib/supabase'
 import { fmtNumber, monthLabel } from '../lib/format'
 import {
   COST_MEASURES, EX_CATEGORIES, FIELD_LABEL, MEASURE_LABEL, PRESETS, RETAIL,
-  allParents, buildTree, toCurrentTeams, flatten, presetCfg, toParams, value,
+  allParents, buildTree, toCurrentTeams, flatten, lastDay, presetCfg, toParams, value,
   type Cfg, type Field, type Measure, type Node,
 } from '../lib/pivot'
 
@@ -30,14 +30,18 @@ function Seg<T extends string>({ value: v, options, onChange }: { value: T; opti
 export function PivotView({ months, teams, provMonths, itemNames, focus, merged }: {
   months: string[]; teams: string[]; provMonths: Set<string>; itemNames: string[]
   merged: { month: string; from: string; to: string }[] // 현재 부서로 합쳐 보여주는 옛 부서 매출
-  focus?: { teams: string[]; month: string | null } | null // 점유율 차트에서 부서 클릭으로 열 때
+  focus?: { teams: string[]; from: string | null; to: string | null } | null // 점유율 차트에서 부서 클릭으로 열 때 (상단 기간)
 }) {
   const [presetId, setPresetId] = useState(focus ? TEAM_CUSTOMER : CUSTOM)
   const [cfg, setCfgState] = useState<Cfg>(() =>
     focus ? { ...presetCfg(PRESETS.find((p) => p.id === TEAM_CUSTOMER)), teams: focus.teams } : presetCfg(undefined))
   const [modified, setModified] = useState(false)
-  const [from, setFrom] = useState(focus?.month ?? months[0] ?? '')
-  const [to, setTo] = useState(focus?.month ?? months[months.length - 1] ?? '')
+  // 기간은 일 단위 (YYYY-MM-DD). 열은 월별이라 걸친 월이 열로 나옴
+  const first = months[0] ? `${months[0]}-01` : ''
+  const last = months.length ? lastDay(months[months.length - 1]) : ''
+  const [from, setFrom] = useState(focus?.from ? `${focus.from}-01` : first)
+  const [to, setTo] = useState(focus?.to ? lastDay(focus.to) : last)
+  const [showAll, setShowAll] = useState(false) // 상위 N개 프리셋에서 전체 하위 행 보기
   const [query, setQuery] = useState('')
   const [suggestOpen, setSuggestOpen] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -52,6 +56,7 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
     setModified(false)
     setExpanded(new Set())
     setQuery('')
+    setShowAll(false)
   }
   // 프리셋은 초기값만 채움: 이후 조건을 바꾸면 '바꿨음' 표시
   const update = (patch: Partial<Cfg>) => {
@@ -74,22 +79,29 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
   }, [cfg, from, to])
 
   const tree = useMemo(() => buildTree(rows, query), [rows, query])
-  const visible = useMemo(() => flatten(tree, expanded), [tree, expanded])
-  const monthCols = months.filter((m) => (!from || m >= from) && (!to || m <= to))
+  const top = showAll ? 0 : cfg.top
+  // 상위 N개 보기: 처음부터 최상위 행(팀)을 펼쳐서 바로 상위 품목이 보이게
+  useEffect(() => {
+    if (cfg.top) setExpanded(new Set(tree.children.map((c) => c.key)))
+  }, [tree, cfg.top])
+  const visible = useMemo(() => flatten(tree, expanded, top), [tree, expanded, top])
+  const fromM = from.slice(0, 7)
+  const toM = to.slice(0, 7)
+  const monthCols = months.filter((m) => (!fromM || m >= fromM) && (!toM || m <= toM))
   const byMeasure = cfg.col === 'measure'
   const cols: string[] = byMeasure ? (Object.keys(MEASURE_LABEL) as Measure[]) : monthCols
   const provInRange = monthCols.some((m) => provMonths.has(m))
   const retail = sameSet(cfg.teams, RETAIL)
   // 부서를 골랐고 그 기간에 옛 부서 매출이 합쳐져 있으면 안내
   const mergeNote = useMemo(() => {
-    const hit = merged.filter((m) => cfg.teams.includes(m.to) && (!from || m.month >= from) && (!to || m.month <= to))
+    const hit = merged.filter((m) => cfg.teams.includes(m.to) && (!fromM || m.month >= fromM) && (!toM || m.month <= toM))
     const by = new Map<string, string[]>()
     for (const m of hit) by.set(`${m.to}|${m.from}`, [...(by.get(`${m.to}|${m.from}`) ?? []), m.month])
     return [...by].map(([k, ms]) => {
       const [cur, old] = k.split('|')
       return `${cur} ${ms.sort().map(monthLabel).join('·')} 매출은 당시 ${old} 매출`
     }).join(', ')
-  }, [merged, cfg.teams, from, to])
+  }, [merged, cfg.teams, fromM, toM])
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase()
     return q ? itemNames.filter((n) => n.toLowerCase().includes(q) && !cfg.items.includes(n)).slice(0, 8) : []
@@ -188,13 +200,12 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
         <div className="frow">
           <span className="lbl">기간</span>
           <div className="ctl">
-            <select value={from} onChange={(e) => { setFrom(e.target.value); if (to < e.target.value) setTo(e.target.value) }} aria-label="시작월">
-              {months.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
+            {/* 날짜 칸을 누르면 브라우저 달력이 열림. 지운 값('')은 무시 */}
+            <input type="date" value={from} min={first} max={last} aria-label="시작일"
+              onChange={(e) => { const v = e.target.value; if (!v) return; setFrom(v); if (to < v) setTo(v) }} />
             <span className="muted">~</span>
-            <select value={to} onChange={(e) => { setTo(e.target.value); if (from > e.target.value) setFrom(e.target.value) }} aria-label="종료월">
-              {months.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
+            <input type="date" value={to} min={first} max={last} aria-label="종료일"
+              onChange={(e) => { const v = e.target.value; if (!v) return; setTo(v); if (from > v) setFrom(v) }} />
           </div>
         </div>
         <div className="frow">
@@ -313,6 +324,12 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
               </div>
             )}
           </span>
+          {cfg.top > 0 && cfg.rows.length > 1 && (
+            <button className={showAll ? 'btn small' : 'btn ghost small'} aria-pressed={showAll} onClick={() => setShowAll((v) => !v)}
+              title={`팀마다 판매금액 상위 ${cfg.top}개만 보기 / 전체 보기 전환`}>
+              {showAll ? `상위 ${cfg.top}개만` : '전체보기'}
+            </button>
+          )}
           {cfg.rows.length > 1 && (
             <>
               <button className="btn ghost small" onClick={() => setExpanded(new Set(allParents(tree)))}>모두 펼치기</button>

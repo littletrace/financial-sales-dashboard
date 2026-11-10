@@ -16,4 +16,6 @@ export const fmtPct = (v: number | null) => (v === null || !Number.isFinite(v) ?
 
 export const rate = (profit: number, supply: number) => (supply === 0 ? null : (profit / supply) * 100)
 
-export const monthLabel = (m: string) => `${Number(m.slice(5, 7))}월`
+// 여러 해 데이터라 연도를 붙임: 2026-10 → 26년 10월
+export const monthLabel = (m: string) => `${m.slice(2, 4)}년 ${Number(m.slice(5, 7))}월`
+export const ymLabel = (m: string) => `${m.slice(0, 4)}년 ${Number(m.slice(5, 7))}월`
