@@ -133,6 +133,32 @@ function sum(rows: SalesMetrics[]): Totals {
   )
 }
 
+const THIS_YEAR = String(new Date().getFullYear())
+
+// 부서별 합계 + 매출목표·달성률. inRange: 기간 조건 (상단 기간 또는 올해)
+function summarizeTeams(data: Dataset | null, months: string[], inMonth: (r: { sales_month: string }) => boolean): TeamSummary[] {
+  const rows = data?.team.filter(inMonth) ?? []
+  // 전체 기간이면 실적이 있는 월(1월~당월)의 목표만 합산: 아직 안 온 달 목표까지 넣으면 달성률이 의미 없음
+  const targetOf = new Map<string, number>()
+  const targetMonths = new Set<string>() // 부서|월: 목표 없는 월(예: 2024~2025)의 매출은 달성률에서 뺌
+  for (const t of data?.targets ?? []) {
+    if (inMonth({ sales_month: t.target_month }) && months.includes(t.target_month)) {
+      targetOf.set(t.sales_team, (targetOf.get(t.sales_team) ?? 0) + t.target_amount)
+      targetMonths.add(`${t.sales_team}|${t.target_month}`)
+    }
+  }
+  return [...groupBy(rows, (r) => r.sales_team)].map(([name, list]) => {
+    const t = sum(list)
+    const target = targetOf.get(name) ?? null
+    const targetSupply = list.filter((r) => targetMonths.has(`${name}|${r.sales_month}`)).reduce((a, r) => a + r.total_supply_amount, 0)
+    const { hq, rank } = hqOf(name)
+    return {
+      hq, hq_rank: rank, sales_team: name, ...t, rate: rate(t.profit, t.costedSupply),
+      target, targetSupply, achieve: target ? (targetSupply / target) * 100 : null,
+    }
+  })
+}
+
 function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
   const map = new Map<string, T[]>()
   for (const r of rows) {
@@ -155,9 +181,10 @@ export default function App() {
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
   // 점유율 차트에서 부서 클릭 → 조회 탭을 그 부서의 거래처별 매출·원가로 열기 (key로 매번 새로 열림)
-  const [pivotFocus, setPivotFocus] = useState<{ key: number; teams: string[] } | null>(null)
-  const openTeamPivot = (teams: string[]) => {
-    setPivotFocus((f) => ({ key: (f?.key ?? 0) + 1, teams }))
+  // range: 조회 탭 기간 (없으면 상단 기간). 달성률 카드는 올해로 엶
+  const [pivotFocus, setPivotFocus] = useState<{ key: number; teams: string[]; range?: { from: string; to: string } } | null>(null)
+  const openTeamPivot = (teams: string[], range?: { from: string; to: string }) => {
+    setPivotFocus((f) => ({ key: (f?.key ?? 0) + 1, teams, range }))
     setTab('pivot')
     document.getElementById('detail-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -258,35 +285,18 @@ export default function App() {
     })
   }, [data, months, inTeam, provMonths, withSga, withOpen, team, sgaOf, openMonths])
 
-  const teamSummary = useMemo<TeamSummary[]>(() => {
-    const rows = data?.team.filter(inMonth) ?? []
-    // 전체 기간이면 실적이 있는 월(1월~당월)의 목표만 합산: 아직 안 온 달 목표까지 넣으면 달성률이 의미 없음
-    const targetOf = new Map<string, number>()
-    const targetMonths = new Set<string>() // 부서|월: 목표 없는 월(예: 2024~2025)의 매출은 달성률에서 뺌
-    for (const t of data?.targets ?? []) {
-      if (inMonth({ sales_month: t.target_month }) && months.includes(t.target_month)) {
-        targetOf.set(t.sales_team, (targetOf.get(t.sales_team) ?? 0) + t.target_amount)
-        targetMonths.add(`${t.sales_team}|${t.target_month}`)
-      }
-    }
-    return [...groupBy(rows, (r) => r.sales_team)].map(([name, list]) => {
-      const t = sum(list)
-      const target = targetOf.get(name) ?? null
-      const targetSupply = list.filter((r) => targetMonths.has(`${name}|${r.sales_month}`)).reduce((a, r) => a + r.total_supply_amount, 0)
-      const { hq, rank } = hqOf(name)
-      return {
-        hq, hq_rank: rank, sales_team: name, ...t, rate: rate(t.profit, t.costedSupply),
-        target, targetSupply, achieve: target ? (targetSupply / target) * 100 : null,
-      }
-    })
-  }, [data, inMonth, months])
+  const teamSummary = useMemo(() => summarizeTeams(data, months, inMonth), [data, inMonth, months])
+  // 목표 달성률 카드는 상단 기간과 무관하게 올해(1월~실적 있는 달)만
+  const yearSummary = useMemo(() => summarizeTeams(data, months, (r) => r.sales_month.startsWith(THIS_YEAR)), [data, months])
 
   // 목표 달성률: 색은 예전 점유율 도넛과 같은 규칙 (매출 순위 1~7위 PALETTE, 그 아래 회색). 목표 없는 부서는 빠짐
   const teamAchieve = useMemo(
-    () => [...teamSummary].sort((a, b) => b.supply - a.supply)
+    () => [...yearSummary].sort((a, b) => b.supply - a.supply)
       .map((t, i) => ({ ...t, color: PALETTE[Math.min(i, PALETTE.length - 1)] })).filter((t) => t.target),
-    [teamSummary],
+    [yearSummary],
   )
+  const yearMonths = months.filter((m) => m.startsWith(THIS_YEAR))
+  const yearRange = yearMonths.length ? { from: yearMonths[0], to: yearMonths[yearMonths.length - 1] } : undefined
   const achMax = Math.min(200, Math.max(120, ...teamAchieve.map((t) => t.achieve ?? 0))) // 막대 눈금 끝 (%): 200% 넘으면 잘림
 
   const topItems = useMemo<ItemSummary[]>(() => {
@@ -603,7 +613,7 @@ export default function App() {
             <div className="card glass ach-card">
               <div className="card-head">
                 <h2>부서별 목표 달성률</h2>
-                <span className="muted small">{periodLabel} · 선 = 목표 100%</span>
+                <span className="muted small">{THIS_YEAR}년 · 선 = 목표 100%</span>
               </div>
               {teamAchieve.length ? (
                 <ul className="ach-list">
@@ -611,7 +621,7 @@ export default function App() {
                     <li key={t.sales_team}>
                       {/* 막대를 누르면 그 부서 거래처별 조회로 (예전 점유율 도넛과 같은 동작) */}
                       <button type="button" className={`ach-row${team !== ALL && team !== t.sales_team ? ' dim' : ''}`}
-                        title={`${t.sales_team} 거래처별 매출·원가 보기`} onClick={() => openTeamPivot([t.sales_team])}>
+                        title={`${t.sales_team} 거래처별 매출·원가 보기`} onClick={() => openTeamPivot([t.sales_team], yearRange)}>
                         <span className="legend-name">{t.sales_team}</span>
                         <span className="ach-track">
                           <span className="ach-bar" style={{ width: `${(Math.min(t.achieve ?? 0, achMax) / achMax) * 100}%`, background: `linear-gradient(90deg, ${t.color}9e, ${t.color}f2)` }} />
@@ -624,10 +634,10 @@ export default function App() {
                   ))}
                 </ul>
               ) : (
-                <p className="muted small">선택한 기간에 매출목표가 없습니다</p>
+                <p className="muted small">{THIS_YEAR}년 매출목표가 없습니다</p>
               )}
-              {teamAchieve.length > 0 && teamSummary.some((t) => !t.target && t.supply) && (
-                <p className="muted small ach-note">목표가 없는 부서({teamSummary.filter((t) => !t.target && t.supply).map((t) => t.sales_team).join(', ')})는 빠집니다</p>
+              {teamAchieve.length > 0 && yearSummary.some((t) => !t.target && t.supply) && (
+                <p className="muted small ach-note">목표가 없는 부서({yearSummary.filter((t) => !t.target && t.supply).map((t) => t.sales_team).join(', ')})는 빠집니다</p>
               )}
             </div>
 
@@ -667,7 +677,7 @@ export default function App() {
               {tab === 'pivot' && <PivotView
                   key={pivotFocus?.key ?? 0}
                   merged={data?.merged ?? []}
-                  focus={pivotFocus && { teams: pivotFocus.teams, from: from === ALL ? null : from, to: from === ALL ? null : to }}
+                  focus={pivotFocus && { teams: pivotFocus.teams, from: pivotFocus.range?.from ?? (from === ALL ? null : from), to: pivotFocus.range?.to ?? (from === ALL ? null : to) }}
                   months={pivotMonths} teams={pivotTeams} provMonths={provMonths} itemNames={pivotItems} />}
               {tab === 'customer' && (
                 <DataTable
