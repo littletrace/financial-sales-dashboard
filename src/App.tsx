@@ -614,10 +614,14 @@ export default function App() {
             <div className="card glass ach-card">
               <div className="card-head">
                 <h2>부서별 목표 달성률</h2>
-                <span className="muted small">{THIS_YEAR}년 · 선 = 목표 100%</span>
+                <span className="muted small">{THIS_YEAR}년 목표 달성률</span>
               </div>
               {teamAchieve.length ? (
                 <ul className="ach-list">
+                  <li className="ach-row ach-scale" aria-hidden="true">
+                    <span />
+                    <span className="ach-track-label"><span style={{ left: `${(100 / achMax) * 100}%` }}>100%</span></span>
+                  </li>
                   {teamAchieve.map((t) => (
                     <li key={t.sales_team}>
                       {/* 막대를 누르면 그 부서 거래처별 조회로 (예전 점유율 도넛과 같은 동작) */}

@@ -137,6 +137,11 @@ main.refreshing { opacity: 0.55; pointer-events: none; }
 .ach-track { position: relative; height: 16px; border-radius: 5px; background: var(--field); }
 .ach-bar { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 5px; }
 .ach-goal { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text); }
+/* 검은 선 위 '100%' 표시: 막대와 같은 칸 배치, 선 위치에 가운데 맞춤 */
+.ach-scale { cursor: default; padding-top: 0; padding-bottom: 0; }
+.ach-scale:hover { background: none; }
+.ach-track-label { position: relative; height: 14px; }
+.ach-track-label span { position: absolute; transform: translateX(-50%); font-size: 0.7rem; color: var(--muted); line-height: 14px; }
 .ach-note { margin: 10px 0 0; }
 
 /* ---------- Tabs / table ---------- */

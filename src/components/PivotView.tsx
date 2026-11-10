@@ -35,7 +35,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
   const [presetId, setPresetId] = useState(focus ? TEAM_CUSTOMER : CUSTOM)
   const [cfg, setCfgState] = useState<Cfg>(() =>
     focus ? { ...presetCfg(PRESETS.find((p) => p.id === TEAM_CUSTOMER)), teams: focus.teams } : presetCfg(undefined))
-  const [modified, setModified] = useState(false)
   // 기간은 일 단위 (YYYY-MM-DD). 열은 월별이라 걸친 월이 열로 나옴
   const first = months[0] ? `${months[0]}-01` : ''
   const last = months.length ? lastDay(months[months.length - 1]) : ''
@@ -51,12 +50,10 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
   const [rows, setRows] = useState<PivotRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const preset = PRESETS.find((p) => p.id === presetId)
 
   const choose = (id: string) => {
     setPresetId(id)
     setCfgState(presetCfg(PRESETS.find((p) => p.id === id)))
-    setModified(false)
     setExpanded(new Set())
     setQuery('')
     setShowAll(false)
@@ -64,7 +61,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
   // 프리셋은 초기값만 채움: 이후 조건을 바꾸면 '바꿨음' 표시
   const update = (patch: Partial<Cfg>) => {
     setCfgState((c) => ({ ...c, ...patch }))
-    if (presetId !== CUSTOM) setModified(true)
     setExpanded(new Set())
   }
 
@@ -170,28 +166,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="preset-note">
-        {preset ? (
-          <>
-            <b>{preset.name}</b>
-            <span className="muted">
-              {preset.old ? `구 시트 ${preset.old}와 같은 조건으로 채웠습니다.` : '시트에는 없던 조합입니다.'}
-            </span>
-            {modified && (
-              <>
-                <span className="modified">· 조건을 바꿨습니다</span>
-                <button type="button" className="linkbtn" onClick={() => choose(preset.id)}>프리셋 값으로 되돌리기</button>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <b>직접 구성</b>
-            <span className="muted">기본값은 KPI와 같은 기준(전체 포함)입니다. 프리셋을 누르면 아래 조건이 그 값으로 채워지고, 이후엔 자유롭게 바꿀 수 있습니다.</span>
-          </>
-        )}
       </div>
 
       <div className="pivot-panel">
