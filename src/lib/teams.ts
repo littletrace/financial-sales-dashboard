@@ -19,7 +19,9 @@ export const HQ: [string, string[]][] = [
 ]
 export const HQ_ETC = '기타'
 
-export const currentTeam = (t: string) => TEAM_MERGE[t] ?? TEAM_RENAME[t] ?? t
+export const NO_TEAM = '부서 미분류'
+// DB 부서가 비어 있는 행(부서 규칙에 안 걸린 옛 매출 등)은 '부서 미분류'로. null이면 부서 정렬에서 화면 전체가 멈춤
+export const currentTeam = (t: string | null) => (t ? TEAM_MERGE[t] ?? TEAM_RENAME[t] ?? t : NO_TEAM)
 
 /** 현재 부서명 → DB에 있는 부서명들 (DB 조회 조건용) */
 export const dbTeams = (teams: string[]) => {
