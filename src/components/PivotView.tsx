@@ -9,6 +9,7 @@ import {
 } from '../lib/pivot'
 
 const CUSTOM = 'custom'
+const yearStart = `${new Date().getFullYear()}-01-01` // 조회 기본 시작일 (올해 1월 1일)
 const TEAM_CUSTOMER = 'team-customer'
 const GROUPS = [...new Set(PRESETS.map((p) => p.group))]
 const pathLabel = (rows: Field[]) => rows.map((f) => FIELD_LABEL[f]).join(' > ')
@@ -27,19 +28,18 @@ function Seg<T extends string>({ value: v, options, onChange }: { value: T; opti
   )
 }
 
-export function PivotView({ months, teams, provMonths, itemNames, focus, merged }: {
+export function PivotView({ months, teams, provMonths, itemNames, focus }: {
   months: string[]; teams: string[]; provMonths: Set<string>; itemNames: string[]
-  merged: { month: string; from: string; to: string }[] // 현재 부서로 합쳐 보여주는 옛 부서 매출
   focus?: { teams: string[]; from: string | null; to: string | null } | null // 점유율 차트에서 부서 클릭으로 열 때 (상단 기간)
 }) {
   const [presetId, setPresetId] = useState(focus ? TEAM_CUSTOMER : CUSTOM)
   const [cfg, setCfgState] = useState<Cfg>(() =>
     focus ? { ...presetCfg(PRESETS.find((p) => p.id === TEAM_CUSTOMER)), teams: focus.teams } : presetCfg(undefined))
-  const [modified, setModified] = useState(false)
   // 기간은 일 단위 (YYYY-MM-DD). 열은 월별이라 걸친 월이 열로 나옴
   const first = months[0] ? `${months[0]}-01` : ''
   const last = months.length ? lastDay(months[months.length - 1]) : ''
-  const [from, setFrom] = useState(focus?.from ? `${focus.from}-01` : first)
+  // 기본 기간은 올해(3년 전체는 무거워 DB 시간 제한에 걸림). 데이터가 올해 이전에 끝나면 처음부터
+  const [from, setFrom] = useState(focus?.from ? `${focus.from}-01` : last >= yearStart && first < yearStart ? yearStart : first)
   const [to, setTo] = useState(focus?.to ? lastDay(focus.to) : last)
   const today = new Date().toLocaleDateString('sv-SE') // 로컬 YYYY-MM-DD
   const [openYears, setOpenYears] = useState(() => new Set([to.slice(0, 4)])) // 연도 접기: 펼친 연도 (기본 마지막 해)
@@ -50,12 +50,10 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
   const [rows, setRows] = useState<PivotRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const preset = PRESETS.find((p) => p.id === presetId)
 
   const choose = (id: string) => {
     setPresetId(id)
     setCfgState(presetCfg(PRESETS.find((p) => p.id === id)))
-    setModified(false)
     setExpanded(new Set())
     setQuery('')
     setShowAll(false)
@@ -63,7 +61,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
   // 프리셋은 초기값만 채움: 이후 조건을 바꾸면 '바꿨음' 표시
   const update = (patch: Partial<Cfg>) => {
     setCfgState((c) => ({ ...c, ...patch }))
-    if (presetId !== CUSTOM) setModified(true)
     setExpanded(new Set())
   }
 
@@ -100,16 +97,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
   const toggleYear = (y: string) => setOpenYears((s) => { const n = new Set(s); if (n.has(y)) n.delete(y); else n.add(y); return n })
   const provInRange = monthCols.some((m) => provMonths.has(m))
   const retail = sameSet(cfg.teams, RETAIL)
-  // 부서를 골랐고 그 기간에 옛 부서 매출이 합쳐져 있으면 안내
-  const mergeNote = useMemo(() => {
-    const hit = merged.filter((m) => cfg.teams.includes(m.to) && (!fromM || m.month >= fromM) && (!toM || m.month <= toM))
-    const by = new Map<string, string[]>()
-    for (const m of hit) by.set(`${m.to}|${m.from}`, [...(by.get(`${m.to}|${m.from}`) ?? []), m.month])
-    return [...by].map(([k, ms]) => {
-      const [cur, old] = k.split('|')
-      return `${cur} ${ms.sort().map(monthLabel).join('·')} 매출은 당시 ${old} 매출`
-    }).join(', ')
-  }, [merged, cfg.teams, fromM, toM])
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase()
     return q ? itemNames.filter((n) => n.toLowerCase().includes(q) && !cfg.items.includes(n)).slice(0, 8) : []
@@ -179,28 +166,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="preset-note">
-        {preset ? (
-          <>
-            <b>{preset.name}</b>
-            <span className="muted">
-              {preset.old ? `구 시트 ${preset.old}와 같은 조건으로 채웠습니다.` : '시트에는 없던 조합입니다.'}
-            </span>
-            {modified && (
-              <>
-                <span className="modified">· 조건을 바꿨습니다</span>
-                <button type="button" className="linkbtn" onClick={() => choose(preset.id)}>프리셋 값으로 되돌리기</button>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <b>직접 구성</b>
-            <span className="muted">기본값은 KPI와 같은 기준(전체 포함)입니다. 프리셋을 누르면 아래 조건이 그 값으로 채워지고, 이후엔 자유롭게 바꿀 수 있습니다.</span>
-          </>
-        )}
       </div>
 
       <div className="pivot-panel">
@@ -353,7 +318,6 @@ export function PivotView({ months, teams, provMonths, itemNames, focus, merged 
       </div>
 
       {error && <div className="alert glass">조회 실패: {error}</div>}
-      {mergeNote && <p className="merge-note">{mergeNote}입니다 (현재 부서로 합쳐 표시)</p>}
 
       <div className={`table-scroll pivot-scroll ${loading ? 'refreshing' : ''}`}>
         <table className="pivot-table">
