@@ -9,7 +9,8 @@ import {
 } from '../lib/pivot'
 
 const CUSTOM = 'custom'
-const yearStart = `${new Date().getFullYear()}-01-01` // 조회 기본 시작일 (올해 1월 1일)
+const today = new Date().toLocaleDateString('sv-SE') // 로컬 YYYY-MM-DD
+const yearStart = `${today.slice(0, 4)}-01-01` // 조회 기본: 올해 1월 1일 ~ 오늘
 const TEAM_CUSTOMER = 'team-customer'
 const GROUPS = [...new Set(PRESETS.map((p) => p.group))]
 const pathLabel = (rows: Field[]) => rows.map((f) => FIELD_LABEL[f]).join(' > ')
@@ -40,8 +41,7 @@ export function PivotView({ months, teams, provMonths, itemNames, focus }: {
   const last = months.length ? lastDay(months[months.length - 1]) : ''
   // 기본 기간은 올해(3년 전체는 무거워 DB 시간 제한에 걸림). 데이터가 올해 이전에 끝나면 처음부터
   const [from, setFrom] = useState(focus?.from ? `${focus.from}-01` : last >= yearStart && first < yearStart ? yearStart : first)
-  const [to, setTo] = useState(focus?.to ? lastDay(focus.to) : last)
-  const today = new Date().toLocaleDateString('sv-SE') // 로컬 YYYY-MM-DD
+  const [to, setTo] = useState(focus?.to ? lastDay(focus.to) : today < last ? today : last)
   const [openYears, setOpenYears] = useState(() => new Set([to.slice(0, 4)])) // 연도 접기: 펼친 연도 (기본 마지막 해)
   const [showAll, setShowAll] = useState(false) // 상위 N개 프리셋에서 전체 하위 행 보기
   const [query, setQuery] = useState('')
