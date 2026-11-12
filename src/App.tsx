@@ -288,6 +288,13 @@ export default function App() {
   }, [data, months, inTeam, provMonths, withSga, withOpen, team, sgaOf, openMonths])
 
   const teamSummary = useMemo(() => summarizeTeams(data, months, inMonth), [data, inMonth, months])
+  // 매출목표 칼럼: 고른 기간 중 목표가 있는 달 기준. 하나도 없으면 칼럼 숨김, 일부만 있으면 '(2026)' 표시 + 안내
+  const targetCover = useMemo(() => {
+    const has = new Set((data?.targets ?? []).map((t) => t.target_month))
+    const inRange = months.filter((m) => inMonth({ sales_month: m }))
+    const covered = inRange.filter((m) => has.has(m))
+    return { none: covered.length === 0, partial: covered.length > 0 && covered.length < inRange.length, years: [...new Set(covered.map((m) => m.slice(0, 4)))].join('·') }
+  }, [data, months, inMonth])
   // 목표 달성률 카드는 상단 기간과 무관하게 올해(1월~실적 있는 달)만
   const yearSummary = useMemo(() => summarizeTeams(data, months, (r) => r.sales_month.startsWith(THIS_YEAR)), [data, months])
 
@@ -669,7 +676,8 @@ export default function App() {
             <div className="tab-body" key={tab}>
               {tab === 'team' && (
                 // 기본: 본부순 → 매출목표 큰 순
-                <DataTable rows={teamSummary} columns={teamColumns(team)} searchKeys={['hq', 'sales_team']} defaultSort="hq" defaultAsc thenBy="target" />
+                <DataTable rows={teamSummary} columns={teamColumns(team, targetCover)} searchKeys={['hq', 'sales_team']} defaultSort="hq" defaultAsc thenBy="target"
+                  note={targetCover.partial ? `매출목표·달성률은 목표가 있는 ${targetCover.years}년 기간만 기준` : undefined} />
               )}
               {tab === 'item' && (
                 <DataTable
@@ -712,8 +720,9 @@ const pct = <T extends { rate: number | null }>(r: T) => (
   <span className={r.rate !== null && r.rate < 0 ? 'neg' : ''}>{fmtPct(r.rate)}</span>
 )
 
-function teamColumns(selected: string): Column<TeamSummary>[] {
-  return [
+function teamColumns(selected: string, cover: { none: boolean; partial: boolean; years: string }): Column<TeamSummary>[] {
+  const y = cover.partial ? `(${cover.years})` : ''
+  const cols: Column<TeamSummary>[] = [
     { key: 'hq', label: '본부', sortBy: 'hq_rank', group: true, render: (r) => <b>{r.hq}</b> },
     {
       key: 'sales_team',
@@ -721,13 +730,14 @@ function teamColumns(selected: string): Column<TeamSummary>[] {
       render: (r) => <span className={r.sales_team === selected ? 'highlight' : ''}>{r.sales_team}</span>,
     },
     { key: 'supply', label: '매출액', align: 'right', render: money('supply') },
-    { key: 'target', label: '매출목표', align: 'right', render: (r) => (r.target === null ? <span className="dim">-</span> : fmtWon(r.target)) },
-    { key: 'achieve', label: '달성률', align: 'right', render: (r) => fmtPct(r.achieve) },
+    { key: 'target', label: `매출목표${y}`, align: 'right', render: (r) => (r.target === null ? <span className="dim">-</span> : fmtWon(r.target)) },
+    { key: 'achieve', label: `달성률${y}`, align: 'right', render: (r) => fmtPct(r.achieve) },
     { key: 'costedSupply', label: '원가 반영 매출', align: 'right', render: money('costedSupply') },
     { key: 'cost', label: '원가', align: 'right', render: money('cost') },
     { key: 'profit', label: '매출이익', align: 'right', render: profitCell },
     { key: 'rate', label: '이익률', align: 'right', render: pct },
   ]
+  return cover.none ? cols.filter((c) => c.key !== 'target' && c.key !== 'achieve') : cols
 }
 
 const itemColumns: Column<ItemSummary>[] = [
