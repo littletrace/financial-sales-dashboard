@@ -134,6 +134,7 @@ function sum(rows: SalesMetrics[]): Totals {
 }
 
 const THIS_YEAR = String(new Date().getFullYear())
+const THIS_MONTH = new Date().toLocaleDateString('sv-SE').slice(0, 7) // 로컬 YYYY-MM
 
 // 부서별 합계 + 매출목표·달성률. inRange: 기간 조건 (상단 기간 또는 올해)
 function summarizeTeams(data: Dataset | null, months: string[], inMonth: (r: { sales_month: string }) => boolean): TeamSummary[] {
@@ -176,8 +177,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [loadedAt, setLoadedAt] = useState<Date | null>(null)
   // 기간: 전체(ALL) 또는 시작월~끝월 (YYYY-MM). 둘 다 ALL이거나 둘 다 월
-  const [from, setFrom] = useState(ALL)
-  const [to, setTo] = useState(ALL)
+  // 기본 기간: 올해 1월 ~ 이번 달 ([전체] 버튼 = 전 기간)
+  const [from, setFrom] = useState(`${THIS_YEAR}-01`)
+  const [to, setTo] = useState(THIS_MONTH)
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
   // 점유율 차트에서 부서 클릭 → 조회 탭을 그 부서의 거래처별 매출·원가로 열기 (key로 매번 새로 열림)
