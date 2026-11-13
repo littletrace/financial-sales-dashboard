@@ -183,7 +183,7 @@ export default function App() {
   const [team, setTeam] = useState(ALL)
   const [tab, setTab] = useState<Tab>('team')
   // 점유율 차트에서 부서 클릭 → 조회 탭을 그 부서의 거래처별 매출·원가로 열기 (key로 매번 새로 열림)
-  // range: 조회 탭 기간 (없으면 상단 기간). 달성률 카드는 올해로 엶
+  // range: 조회 탭 기간 (없으면 상단 기간)
   const [pivotFocus, setPivotFocus] = useState<{ key: number; teams: string[]; range?: { from: string; to: string } } | null>(null)
   const openTeamPivot = (teams: string[], range?: { from: string; to: string }) => {
     setPivotFocus((f) => ({ key: (f?.key ?? 0) + 1, teams, range }))
@@ -271,10 +271,10 @@ export default function App() {
   }, [withSga, withOpen, team, months, inMonth, sgaOf, openMonths, data])
   const opProfit = sga ? sga.profit - sga.amount : null
 
-  // 월별 추이는 기간 필터와 무관하게 전체 월을 보여주고, 선택 월만 강조
+  // 월별 추이도 상단 기간만 (기본 올해, [전체]면 전 기간)
   const trend = useMemo(() => {
     const byMonth = groupBy(data?.team.filter(inTeam) ?? [], (r) => r.sales_month)
-    return months.map((m) => {
+    return months.filter((m) => inMonth({ sales_month: m })).map((m) => {
       const t = sum(byMonth.get(m) ?? [])
       const prov = provMonths.has(m)
       const s = withSga && team === ALL ? sgaOf.get(m) : undefined
@@ -285,7 +285,7 @@ export default function App() {
         opProfit: op, opSolid: open ? null : op, open,
       }
     })
-  }, [data, months, inTeam, provMonths, withSga, withOpen, team, sgaOf, openMonths])
+  }, [data, months, inMonth, inTeam, provMonths, withSga, withOpen, team, sgaOf, openMonths])
 
   const teamSummary = useMemo(() => summarizeTeams(data, months, inMonth), [data, inMonth, months])
   // 매출목표 칼럼: 고른 기간 중 목표가 있는 달 기준. 하나도 없으면 칼럼 숨김, 일부만 있으면 '(2026)' 표시 + 안내
@@ -295,8 +295,8 @@ export default function App() {
     const covered = inRange.filter((m) => has.has(m))
     return { none: covered.length === 0, partial: covered.length > 0 && covered.length < inRange.length, years: [...new Set(covered.map((m) => m.slice(0, 4)))].join('·') }
   }, [data, months, inMonth])
-  // 목표 달성률 카드는 상단 기간과 무관하게 올해(1월~실적 있는 달)만
-  const yearSummary = useMemo(() => summarizeTeams(data, months, (r) => r.sales_month.startsWith(THIS_YEAR)), [data, months])
+  // 목표 달성률 카드도 상단 기간 기준 (부서별 표와 같은 teamSummary)
+  const yearSummary = teamSummary
 
   // 목표 달성률: 색은 예전 점유율 도넛과 같은 규칙 (매출 순위 1~7위 PALETTE, 그 아래 회색). 목표 없는 부서는 빠짐
   const teamAchieve = useMemo(
@@ -305,8 +305,7 @@ export default function App() {
       .sort((a, b) => a.sales_team.localeCompare(b.sales_team, 'ko')), // 표시는 부서 이름순 (색은 매출 순위 그대로)
     [yearSummary],
   )
-  const yearMonths = months.filter((m) => m.startsWith(THIS_YEAR))
-  const yearRange = yearMonths.length ? { from: yearMonths[0], to: yearMonths[yearMonths.length - 1] } : undefined
+  const yearRange = from === ALL ? undefined : { from, to }
   const achMax = Math.min(200, Math.max(120, ...teamAchieve.map((t) => t.achieve ?? 0))) // 막대 눈금 끝 (%): 200% 넘으면 잘림
 
   const topItems = useMemo<ItemSummary[]>(() => {
@@ -623,7 +622,7 @@ export default function App() {
             <div className="card glass ach-card">
               <div className="card-head">
                 <h2>부서별 목표 달성률</h2>
-                <span className="muted small">{THIS_YEAR}년 목표 달성률</span>
+                <span className="muted small">{periodLabel} 목표 달성률</span>
               </div>
               {teamAchieve.length ? (
                 <ul className="ach-list">
@@ -648,7 +647,7 @@ export default function App() {
                   ))}
                 </ul>
               ) : (
-                <p className="muted small">{THIS_YEAR}년 매출목표가 없습니다</p>
+                <p className="muted small">{periodLabel} 매출목표가 없습니다</p>
               )}
               {teamAchieve.length > 0 && yearSummary.some((t) => !t.target && t.supply) && (
                 <p className="muted small ach-note">목표가 없는 부서({yearSummary.filter((t) => !t.target && t.supply).map((t) => t.sales_team).join(', ')})는 빠집니다</p>
