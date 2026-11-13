@@ -198,6 +198,7 @@ export interface LongStockRow {
   no_out: boolean // 출고 이력 없음 → 미출고일수는 입고 후 경과일
   idle_days: number | null
   stock_amount: number | null // 최근 재고단가 × 수량 (단가 없으면 null)
+  branch_amount?: number | null // 이카운트 지점가 × 수량 (지점가 없으면 null)
 }
 
 export interface ExpiryLotRow {
@@ -222,7 +223,7 @@ const nums = <T,>(keys: string[]) => (r: T) => {
 
 export const getLongStock = async () =>
   (await fetchAll<LongStockRow>('v_long_stock', ['item_code', 'item_name', 'last_in_date', 'stock_qty']))
-    .map(nums<LongStockRow>(['stock_qty', 'idle_days', 'stock_amount']))
+    .map(nums<LongStockRow>(['stock_qty', 'idle_days', 'stock_amount', 'branch_amount']))
 
 export const getExpiryLots = async () =>
   (await fetchAll<ExpiryLotRow>('v_expiry_lot', ['item_code', 'expiry_date', 'qty']))
