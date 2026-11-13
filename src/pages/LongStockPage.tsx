@@ -94,8 +94,8 @@ export function LongStockPage() {
               <label className="check"><input type="checkbox" checked={noOut} onChange={(e) => setNoOut(e.target.checked)} /> 출고 이력 없음만</label>
               <button
                 className="btn ghost push-right"
-                onClick={() => downloadCsv('장기재고.csv', ['분류', '품명', '품번', '재고수량', '재고금액', '최종입고일', '최종출고일', '미출고일수'],
-                  view.map((r) => [r.item_category, r.item_name, r.item_code, r.stock_qty, r.stock_amount === null ? null : Math.round(r.stock_amount), r.last_in_date, r.last_out_date, r.idle_days]))}
+                onClick={() => downloadCsv('장기재고.csv', ['분류', '품명', '품번', '재고수량', '재고금액', '지점가 금액', '최종입고일', '최종출고일', '미출고일수'],
+                  view.map((r) => [r.item_category, r.item_name, r.item_code, r.stock_qty, r.stock_amount === null ? null : Math.round(r.stock_amount), r.branch_amount == null ? null : Math.round(r.branch_amount), r.last_in_date, r.last_out_date, r.idle_days]))}
               >
                 <Download size={15} /><span>엑셀(CSV)</span>
               </button>
@@ -104,7 +104,7 @@ export function LongStockPage() {
               note={`${fmtCompact(amt(view))}원`} />
             <p className="muted small table-note">
               미출고일수: 출고 이력이 없는 품목은 최종입고일 이후 경과일 (영림원 원본은 이 경우 2018-01-01 기준 일수를 냄).
-              재고단가가 없는 품목은 금액 '-'.
+              재고단가가 없는 품목은 금액 '-'. 지점가 금액 = 재고수량 × 이카운트 지점가 (지점가 없는 품목 '-').
             </p>
           </section>
         </main>
@@ -119,6 +119,7 @@ const columns: Column<LongStockRow>[] = [
   { key: 'item_code', label: '품번' },
   { key: 'stock_qty', label: '재고수량', align: 'right', render: (r) => fmtNumber(r.stock_qty) },
   { key: 'stock_amount', label: '재고금액', align: 'right', render: (r) => (r.stock_amount === null ? '-' : fmtNumber(r.stock_amount)) },
+  { key: 'branch_amount', label: '지점가 금액', align: 'right', render: (r) => (r.branch_amount == null ? '-' : fmtNumber(r.branch_amount)) },
   { key: 'last_in_date', label: '최종입고일' },
   { key: 'last_out_date', label: '최종출고일', render: (r) => r.last_out_date ?? <span className="tag tag-gray">출고없음</span> },
   { key: 'idle_days', label: '미출고일수', align: 'right', render: (r) => (r.idle_days === null ? '-' : fmtNumber(r.idle_days)) },
