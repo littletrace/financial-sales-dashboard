@@ -407,9 +407,8 @@ export default function App() {
           <div>
             <h1>매출 실적 대시보드</h1>
             <p className="muted small">
-              {periodLabel} · {team === ALL ? '전체 부서' : team}
               {loadedAt &&
-                ` · ${loadedAt.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} DB적재`}
+                `${loadedAt.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 업데이트`}
             </p>
           </div>
         </div>
